@@ -111,4 +111,23 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
+  it('binds fat arrow class methods in the constructor', ()=> {
+    const example = 
+`aClass = class A
+  b: => bom + 123
+`
+    const expected = 
+`var aClass = class A {
+  constructor() {
+    this.b.bind(this);
+  }
+
+  b() {
+    return bom + 123;
+  }
+};`
+    expect(compile(example)).toBe(expected);
+  });
+
+
 });
