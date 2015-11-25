@@ -21,9 +21,20 @@ export const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/
 
 const example1 = `
 aA = class A
-  b: -> bom + 123
+  b: -> 
+    @c a, b
+    bom + 123
 `;
 
+export function mapBoolean(node, scope) {
+  if (node.base.val === 'true') {
+    return b.literal(true);
+  } else if (node.base.val === 'false') {
+    return b.literal(false);
+  }
+
+  throw new Error(`can't convert node of type: ${node.constructor.name} to boolean - not recognized`);
+}
 
 export function stringToRegex(inputstring) {
   var match = inputstring.match(new RegExp('^/(.*?)/([gimy]*)$'));
@@ -82,6 +93,8 @@ export function mapValue(node, scope) {
 
   if (type === 'Literal') {
     return mapLiteral(node, scope);
+  } else if (type === 'Bool') {
+    return mapBoolean(node, scope);
   } else if (type === 'Obj') {
     return mapObjectExpression(node, scope);
   } else if (type === 'Parens') {

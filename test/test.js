@@ -1,9 +1,42 @@
 import expect from 'expect';
-import {compile as _compile} from '../src/parser';
+import {compile as _compile, mapLiteral} from '../src/parser';
 
 function compile (source) {
   return _compile(source, {tabWidth: 2}).code;
 }
+
+describe('Primitives', ()=> {
+  it('strings', ()=> {
+    expect(compile('"yoyoyo"')).toBe('"yoyoyo";');
+  });
+
+  it('numbers', ()=> {
+    expect(compile('123')).toBe('123;');
+  });
+
+  it('floats', ()=> {
+    expect(compile('123.12353443')).toBe('123.12353443;');
+  });
+
+  it('regular expressions', ()=> {
+    expect(compile('/gorigori/gi')).toBe('/gorigori/gi;');
+  });
+
+  it('NaN', ()=> {
+    expect(compile('NaN')).toBe('NaN;');
+  });
+
+  it('booleans', ()=> {
+    expect(compile('true')).toBe('true;');
+    expect(compile('false')).toBe('false;');
+  });
+
+  it('objects', ()=> {
+    expect(compile('a: 213, b: "321"')).toBe('({\n  a: 213,\n  b: "321"\n});');
+    expect(compile('false')).toBe('false;');
+  });
+});
+
 
 describe('AssigmentExpression', ()=>{
   it('assigns strings', ()=> {
@@ -129,5 +162,45 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
+  it('extends a class with the extend keyword', ()=> {
+    const example = 
+`class A extends B
+  b: -> bom + 123
+`
+    const expected = 
+`class A extends B {
+  b() {
+    return bom + 123;
+  }
+}`
+    expect(compile(example)).toBe(expected);
+  });
 
+  it('assigns an extended class to a variable', ()=> {
+    const example = 
+`a = class A extends B
+  b: -> bom + 123
+`
+    const expected = 
+`var a = class A extends B {
+  b() {
+    return bom + 123;
+  }
+};`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps @ to this', ()=> {
+    const example = 
+`class A extends B
+  b: -> @bom 1, 2, 'hey'`
+
+    const expected = 
+`class A extends B {
+  b() {
+    return this.bom(1, 2, "hey");
+  }
+}`
+    expect(compile(example)).toBe(expected);
+  });
 });
