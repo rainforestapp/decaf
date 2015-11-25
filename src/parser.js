@@ -20,10 +20,7 @@ export const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/
 //`;
 
 const example1 = `
-aA = class A
-  b: -> 
-    @c a, b
-    bom + 123
+{a, c: {b}} = bam
 `;
 
 export function mapBoolean(node, scope) {
@@ -83,7 +80,10 @@ export function mapKey(node, scope) {
 
 export function mapObjectExpression(node, scope) {
   return b.objectExpression(node.base.properties.map((property)=> {
-    return b.property('init', mapKey(property.variable, scope), mapExpression(property.value, scope));
+    return b.property(
+      'init', 
+      mapExpression(property.variable || property.base, scope),
+      mapExpression(property.value || property.base, scope));
   }));
 }
 
@@ -127,7 +127,7 @@ export function mapAssignment(node, scope) {
     return mapVariableDeclaration(node, scope);
   }
 
-  return b.expressionStatement(mapAssignmentExpression(node, scope));
+  return b.expressionStatement(mapExpression(node, scope));
 }
 
 export function mapClassBodyElement(node, scope) {
@@ -279,6 +279,8 @@ export function mapExpression(node, scope) {
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties]);
+  } else if (type === 'Assign') {
+    return mapAssignmentExpression(node, scope);
   } else if (type === 'Param') {
     return mapExpression(node.name, scope);
   }else if (type === 'Class') {
@@ -301,14 +303,14 @@ export function mapExpression(node, scope) {
     return mapCall(node, scope);
   }
 
-  throw new Error(`can't convert node of type: ${type} to Expression- not recognized`);
+  throw new Error(`can't convert node of type: ${type} to Expression - not recognized`);
 }
 
 export function mapAssignmentExpression(node, scope) {
   const leftHandType = node.variable.base.constructor.name;
   const identifierName = node.variable.base.value;
   let leftHand;
-
+  
   if (leftHandType === 'Literal') {
     leftHand = b.identifier(identifierName);
   }
@@ -319,10 +321,34 @@ export function mapAssignmentExpression(node, scope) {
     mapExpression(node.value, scope));
 }
 
+export function mapObjectPatternItem(node, scope) {
+  const type = node.constructor.name;
+  if(type === 'Value') {
+    return mapLiteral(node, scope);
+  } else if (type === 'Assign') {
+    return mapObjectPattern(node.value.base.properties, scope);
+  }
+
+  throw new Error(`can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
+}
+
+
 export function mapObjectPattern(nodes, scope) {
   return b.objectPattern(nodes.map((node) => {
-    const prop = b.property('init', mapExpression(node), mapExpression(node));
-    prop.shorthand = true;
+    const {operatorToken} = node;
+    const {value, variable} = node;
+    const type = node.constructor.name;
+    let propValue;
+    let prop;
+    prop = b.property(
+      'init',
+      mapKey(node.variable || node),
+      mapObjectPatternItem(node)
+    );
+
+    if(operatorToken === undefined) {
+      prop.shorthand = true;
+    }
     return prop;
   }));
 }

@@ -8,20 +8,12 @@
   },
   "rules": {
     "valid-jsdoc": 2,
-
-    "react/jsx-uses-react": 2,
-    "react/jsx-uses-vars": 2,
-    "react/react-in-jsx-scope": 2,
-    "react/wrap-multilines": 2,
-
     "comma-dangle": [2, "always-multiline"],
     "id-length": [2, {"exceptions": ["_", "$"]}]
   },
   "plugins": [
-    "react",
     "babel"
   ],
   "globals": {
-    "analytics": true
   }
 }
