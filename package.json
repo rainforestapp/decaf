@@ -18,7 +18,7 @@
     "expect": "1.13.0",
     "lodash": "3.10.1",
     "mocha": "2.3.4",
-    "recast": "0.10.38",
+    "recast": "juliankrispel/recast#implements-keyword",
     "source-map-support": "0.3.3"
   }
 }

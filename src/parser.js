@@ -1,6 +1,5 @@
 import {namedTypes, builders as b} from 'ast-types';
 import recast from 'recast';
-import highlighter from 'consolehighlighter';
 import {nodes as coffeeAst} from 'coffee-script';
 import _ from 'lodash';
 
@@ -21,7 +20,8 @@ export const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/
 //`;
 
 const example1 = `
-class A
+aA = class A
+  b: -> bom + 123
 `;
 
 
@@ -118,7 +118,6 @@ export function mapAssignment(node, scope) {
 }
 
 export function mapClassBodyElement(node, scope) {
-  console.log('map class body element', node)
   const {type} = node.constructor.name;
   const methodName = node.variable.base.value;
   let elementType = 'method';
@@ -147,7 +146,6 @@ export function unbindMethods(classElements) {
 }
 
 export function mapClassBody(node, scope) {
-  console.log('map class body', node)
   const {expressions} = node;
   let boundMethods = [];
   let classElements = [];
@@ -160,7 +158,6 @@ export function mapClassBody(node, scope) {
   }
 
   let constructor = _.findWhere(classElements, {kind: 'constructor'});
-  console.log(1)
 
   if(boundMethods.length > 0){
     if(constructor === undefined) {
@@ -172,7 +169,6 @@ export function mapClassBody(node, scope) {
       classElements.unshift(constructor);
     }
 
-    console.log(2)
     // bind all the bound methods to the class
     constructor.value.body.body = 
       constructor.value.body.body.concat(
@@ -192,19 +188,34 @@ export function mapClassBody(node, scope) {
         })
     );
   }
-  console.log(3, classElements)
 
   return b.classBody(classElements);
 
   return null;
 }
 
-export function mapClass(node, scope) {
-  console.log('map class', node);
+export function mapClassExpression(node, scope) {
   let parent = null;
-  if (node.parent !== undefined) {
+
+  if (node.parent !== undefined && node.parent !== null) {
     parent = mapExpression(node.parent, scope);
   }
+
+  return b.classExpression(
+    mapExpression(node.variable, scope),
+    mapClassBody(node.body, scope),
+    parent
+  )
+}
+
+
+export function mapClassDeclaration(node, scope) {
+  let parent = null;
+
+  if (node.parent !== undefined && node.parent !== null) {
+    parent = mapExpression(node.parent, scope);
+  }
+
   return b.classDeclaration(
     mapExpression(node.variable, scope),
     mapClassBody(node.body, scope),
@@ -219,7 +230,7 @@ export function mapStatement(node, scope) {
     const identifierName = node.variable.base.value;
     return mapAssignment(node, scope);
   } else if (type === 'Class') {
-    return mapExpression(node, scope;)
+    return mapClassDeclaration(node, scope);
   }
 
   return b.expressionStatement(mapExpression(node, scope));
@@ -238,7 +249,6 @@ export function mapBlockStatement(node, scope) {
 }
 
 export function mapFunction(node, scope) {
-  console.log('map function', node)
   let constructor = b.functionExpression;
   const args = mapArguments(node.params, scope);
   const block = mapBlockStatement(node.body, scope);
@@ -252,7 +262,6 @@ export function mapFunction(node, scope) {
 
 export function mapExpression(node, scope) {
   //IS_REGEX.test(node.value.base.value)
-  console.log('map expression', node);
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
@@ -260,7 +269,7 @@ export function mapExpression(node, scope) {
   } else if (type === 'Param') {
     return mapExpression(node.name, scope);
   }else if (type === 'Class') {
-    return mapClass(node, scope);
+    return mapClassExpression(node, scope);
   } else if (type === 'Extends') {
     return mapExpression(node.parent, scope);
   } else if (type === 'Code') { // Code is just a stupid word for function
@@ -283,7 +292,6 @@ export function mapExpression(node, scope) {
 }
 
 export function mapAssignmentExpression(node, scope) {
-  console.log('yo', node);
   const leftHandType = node.variable.base.constructor.name;
   const identifierName = node.variable.base.value;
   let leftHand;
@@ -339,4 +347,4 @@ export function compile(coffeeSource, options = {}) {
   return recast.print(parse(coffeeSource), options);
 }
 
-process.stdout.write('\nCODE: \n\n' + highlighter.highlight(compile(example1).code) + '\n');
+process.stdout.write('\nCODE: \n\n' + compile(example1).code + '\n');

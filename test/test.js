@@ -79,7 +79,36 @@ describe('FunctionExpression', ()=> {
 describe('ClassExpression', ()=> {
   it('renders a simple class expression', ()=> {
     const example = `class A`
-    const expected = `class A { }`
+    const expected = `class A {}`
     expect(compile(example)).toBe(expected);
   });
+
+  it('renders a simple class expression with a method', ()=> {
+    const example = 
+`class A
+  b: -> bom + 123
+`
+    const expected = 
+`class A {
+  b() {
+    return bom + 123;
+  }
+}`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('renders an assignment with a simple class expression with a method', ()=> {
+    const example = 
+`aClass = class A
+  b: -> bom + 123
+`
+    const expected = 
+`var aClass = class A {
+  b() {
+    return bom + 123;
+  }
+};`
+    expect(compile(example)).toBe(expected);
+  });
+
 });
