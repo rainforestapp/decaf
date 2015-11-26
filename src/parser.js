@@ -20,8 +20,14 @@ export const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/
 //`;
 
 const example1 = `
-{a, c: {b}} = bam
+[a, b] = bam
+# Hello hello hello
 `;
+
+var arr = [1,2,3,4,5,6,7];
+
+//var [a1] = arr;
+
 
 export function mapBoolean(node, scope) {
   if (node.base.val === 'true') {
@@ -332,7 +338,6 @@ export function mapObjectPatternItem(node, scope) {
   throw new Error(`can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
 }
 
-
 export function mapObjectPattern(nodes, scope) {
   return b.objectPattern(nodes.map((node) => {
     const {operatorToken} = node;
@@ -353,16 +358,35 @@ export function mapObjectPattern(nodes, scope) {
   }));
 }
 
-export function mapAssignmentPattern(node, scope) {
-  const type = node.constructor.name
+export function mapArrayPattern(node, scope) {
+  return b.arrayPattern(node.objects.map((prop)=> {
+    const type = prop.base.constructor.name;
+    if (type === 'Literal') {
+      return mapLiteral(prop, scope);
+    } else if (type === 'Arr') {
+      return mapArrayPattern(prop.base, scope);
+    } 
+  }));
+}
 
+export function mapAssignmentPattern(node, scope) {
   // that's a destructuring assignment
-  if (type === 'Value' && 
-      node.base.constructor.name === 'Obj' &&
-      node.base.properties.length > 0) {
-    return mapObjectPattern(node.base.properties, scope);
+  const type = node.constructor.name;
+
+  if (type === 'Obj' && node.properties) {
+    return mapObjectPattern(node.properties, scope);
+  } else if (type === 'Arr') {
+    return mapArrayPattern(node, scope);
   }
 
+  return mapExpression(node, scope);
+}
+
+export function mapAssignmentLeftHand(node, scope) {
+  const type = node.constructor.name;
+  if (type === 'Value') {
+    return mapAssignmentPattern(node.base, scope);
+  }
   return mapExpression(node, scope);
 }
 
@@ -371,7 +395,7 @@ export function mapVariableDeclaration(node, scope) {
   scope[identifierName] = true;
   return b.variableDeclaration('var', [
     b.variableDeclarator(
-      mapAssignmentPattern(node.variable, scope), 
+      mapAssignmentLeftHand(node.variable, scope), 
       mapExpression(node.value, scope))]);
 }
 

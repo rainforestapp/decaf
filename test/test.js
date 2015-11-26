@@ -209,21 +209,38 @@ describe('ClassExpression', ()=> {
 describe('Destructuring', ()=> {
   it('maps simple object destructuring assignments', ()=> {
     const example = `{a, b} = abam`;
-    const expected = `var {a, b} = abam;`
+    const expected = 
+`var {
+  a,
+  b
+} = abam;`
+    expect(compile(example)).toBe(expected);
   });
 
   it('maps deep object destructuring assignments', ()=> {
     const example = `{a, b: {c: {d}}} = abam`;
     const expected = 
 `var {
-    a, 
-    
-    b: {
-      c: {
-        d
-      }
+  a,
+
+  b: {
+    c: {
+      d
     }
+  }
 } = abam;`
+    expect(compile(example)).toBe(expected);
   });
 
+  it('maps simple array destructuring assignments', ()=> {
+    const example = `[a, b, c] = abam`;
+    const expected = `var [a, b, c] = abam;`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps nested array destructuring assignments', ()=> {
+    const example = `[a, [b, [c]]] = abam`;
+    const expected = `var [a, [b, [c]]] = abam;`
+    expect(compile(example)).toBe(expected);
+  });
 });
