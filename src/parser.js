@@ -1,6 +1,6 @@
 import {namedTypes, builders as b} from 'ast-types';
 import recast from 'recast';
-import {nodes as coffeeAst} from 'coffee-script';
+import {compile as cc, nodes as coffeeAst} from 'coffee-script';
 import _ from 'lodash';
 
 // regexes taken from coffeescript parser
@@ -20,14 +20,20 @@ export const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/
 //`;
 
 const example1 = `
-[a, b] = bam
-# Hello hello hello
+[{a: {b: 123}}, b] = bam
 `;
 
 var arr = [1,2,3,4,5,6,7];
 
 //var [a1] = arr;
 
+export function isExpression(node) {
+  const type = node.constructor.name;
+  if(type === 'If') {
+    return false;
+  } 
+  return true;
+}
 
 export function mapBoolean(node, scope) {
   if (node.base.val === 'true') {
@@ -62,7 +68,6 @@ export function mapMemberExpression(properties, scope) {
 export function mapLiteral(node, scope) {
   let value;
   value = node.base.value;
-  const type = node.constructor.name;
 
   if (value === 'NaN') {
     return b.literal(NaN);
@@ -101,6 +106,8 @@ export function mapValue(node, scope) {
     return mapLiteral(node, scope);
   } else if (type === 'Bool') {
     return mapBoolean(node, scope);
+  } else if (type === 'Arr') {
+    return mapArrayPattern(node.base, scope);
   } else if (type === 'Obj') {
     return mapObjectExpression(node, scope);
   } else if (type === 'Parens') {
@@ -114,6 +121,8 @@ export function mapOp(node, scope) {
   const {operator} = node;
   if (operator === '||' || operator === '&&') {
     return b.logicalExpression(node.operator, mapExpression(node.first, scope), mapExpression(node.second, scope));
+  } else if (operator === '!') {
+    return b.unaryExpression(node.operator, mapExpression(node.first, scope));
   }
   return b.binaryExpression(node.operator, mapExpression(node.first, scope), mapExpression(node.second, scope));
 }
@@ -242,6 +251,48 @@ export function mapClassDeclaration(node, scope) {
   )
 }
 
+export function mapElseBlock (node, scope) {
+  const type = node.constructor.name;
+
+  if(type === 'If') {
+    return mapIfStatement(node, scope);
+  } else if (type === 'Block') {
+    return mapBlockStatement(node, scope);
+  }
+
+  return mapBlockStatement({expressions: [node]}, scope);
+
+  throw new Error(`can't convert node of type: ${type} to ElseBlock - not recognized`);
+}
+
+export function mapIfStatement(node, scope) {
+  let alternate = null;
+  if(node.elseBody) {
+    alternate = mapElseBlock(node.elseBody.expressions[0]);
+  }
+  return b.ifStatement(
+    mapExpression(node.condition),
+    mapBlockStatement(node.body),
+    alternate
+  );
+}
+
+export function mapTryCatchBlock(node, scope) {
+  let finalize = null;
+  if(node.ensure) {
+    finalize = mapBlockStatement(node.ensure)
+  }
+  return b.tryStatement(
+    mapBlockStatement(node.attempt, scope),
+    b.catchClause(
+      mapLiteral({base: node.errorVariable}, scope),
+      null,
+      mapBlockStatement(node.recovery, scope)
+    ),
+    finalize
+  );
+}
+
 export function mapStatement(node, scope) {
   const type = node.constructor.name;
 
@@ -250,6 +301,10 @@ export function mapStatement(node, scope) {
     return mapAssignment(node, scope);
   } else if (type === 'Class') {
     return mapClassDeclaration(node, scope);
+  } else if (type === 'If') {
+    return mapIfStatement(node, scope);
+  } else if (type === 'Try') {
+    return mapTryCatchBlock(node, scope);
   }
 
   return b.expressionStatement(mapExpression(node, scope));
@@ -260,7 +315,7 @@ export function mapStatement(node, scope) {
 export function mapBlockStatement(node, scope) {
   const lastIndex = node.expressions.length - 1;
   return b.blockStatement(node.expressions.map((expr, i) => {
-    if (i === lastIndex) {
+    if (i === lastIndex && isExpression(expr)) {
       return b.returnStatement(mapExpression(expr, scope));
     }
     return mapStatement(expr, scope);
@@ -332,7 +387,11 @@ export function mapObjectPatternItem(node, scope) {
   if(type === 'Value') {
     return mapLiteral(node, scope);
   } else if (type === 'Assign') {
-    return mapObjectPattern(node.value.base.properties, scope);
+    if (node.value.base.properties) {
+      return mapObjectPattern(node.value.base.properties, scope);
+    } else {
+      return mapExpression(node.value);
+    }
   }
 
   throw new Error(`can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
@@ -365,7 +424,9 @@ export function mapArrayPattern(node, scope) {
       return mapLiteral(prop, scope);
     } else if (type === 'Arr') {
       return mapArrayPattern(prop.base, scope);
-    } 
+    } else if (type === 'Obj') {
+      return mapObjectPattern(prop.base.properties, scope);
+    }
   }));
 }
 
@@ -410,4 +471,4 @@ export function compile(coffeeSource, options = {}) {
   return recast.print(parse(coffeeSource), options);
 }
 
-process.stdout.write('\nCODE: \n\n' + compile(example1).code + '\n');
+//process.stdout.write('\nCODE: \n\n' + compile(example1).code + '\n');

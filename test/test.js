@@ -1,4 +1,5 @@
 import expect from 'expect';
+import {convert} from 'decaffeinate';
 import {compile as _compile, mapLiteral} from '../src/parser';
 
 function compile (source) {
@@ -37,6 +38,47 @@ describe('Primitives', ()=> {
   });
 });
 
+describe('Boolean Expression', ()=> {
+  it('a > 123', ()=> {
+    expect(compile('a > 123')).toBe('a > 123;');
+  });
+
+  it('a < 123', ()=> {
+    expect(compile('a < 123')).toBe('a < 123;');
+  });
+
+  it('a <= 123', ()=> {
+    expect(compile('a <= 123')).toBe('a <= 123;');
+  });
+
+  it('a >= 123', ()=> {
+    expect(compile('a >= 123')).toBe('a >= 123;');
+  });
+
+  it('a || 123', ()=> {
+    expect(compile('a || 123')).toBe('a || 123;');
+  });
+
+  it('a or 123', ()=> {
+    expect(compile('a or 123')).toBe('a || 123;');
+  });
+
+  it('a and b', ()=> {
+    expect(compile('a and b')).toBe('a && b;');
+  });
+
+  it('!b', ()=> {
+    expect(compile('!b')).toBe('!b;');
+  });
+
+  it('!!b', ()=> {
+    expect(compile('!!b')).toBe('!!b;');
+  });
+
+  it('!!!b', ()=> {
+    expect(compile('!!!b')).toBe('!!!b;');
+  });
+});
 
 describe('AssigmentExpression', ()=>{
   it('assigns strings', ()=> {
@@ -242,5 +284,169 @@ describe('Destructuring', ()=> {
     const example = `[a, [b, [c]]] = abam`;
     const expected = `var [a, [b, [c]]] = abam;`
     expect(compile(example)).toBe(expected);
+  });
+
+  it('maps object destructuring assignment inside array destructuring assignment', ()=> {
+    const example = `[{a: {b: 123}}, b] = bam`;
+    const expected = 
+`var [{
+  a: {
+    b: 123
+  }
+}, b] = bam;`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps array destructuring assignment inside object destructuring assignment', ()=> {
+    const example = `{a: [b, c]} = bam`;
+    const expected = 
+`var {
+  a: [b, c]
+} = bam;`
+    expect(compile(example)).toBe(expected);
+  });
+});
+
+describe('conditional statements', ()=> {
+  it('maps simple if statement', ()=> {
+    const example = 
+`
+if explosion is true
+  alert 'BOOM'
+`;
+    const expected = 
+`if (explosion === true) {
+  return alert("BOOM");
+}`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps nested if statements ', ()=> {
+    const example = 
+`
+if explosion is true
+  if fake isnt false
+    alert 'BOOM'
+`;
+    const expected = 
+`if (explosion === true) {
+  if (fake !== false) {
+    return alert("BOOM");
+  }
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps if statements with multiple conditions ', ()=> {
+    const example = 
+`
+if explosion is true and boom is false and other
+  alert 'BOOM'
+`;
+    const expected = 
+`if (explosion === true && boom === false && other) {
+  return alert("BOOM");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps if statements with else statements ', ()=> {
+    const example = 
+`
+if explosion is true
+  alert 'BOOM'
+else if explosion is false
+  alert 'NO BOOM 1'
+else if explosion is false
+  alert 'NO BOOM 2'
+else
+  alert 'NOTHING'
+`;
+    const expected = 
+`if (explosion === true) {
+  return alert("BOOM");
+} else if (explosion === false) {
+  return alert("NO BOOM 1");
+} else if (explosion === false) {
+  return alert("NO BOOM 2");
+} else {
+  return alert("NOTHING");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps unless statements', ()=> {
+    const example = 
+`unless explosion is false
+  alert 'BOOM'`;
+    const expected = 
+`if (explosion !== false) {
+  return alert("BOOM");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps reverse if statements', ()=> {
+    const example = 
+`console.log 'boom' if condition is true`;
+    const expected = 
+`if (condition === true) {
+  return console.log("boom");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps long reverse if statements', ()=> {
+    const example = 
+`console.log 'boom' if condition is true and bam isnt false`;
+    const expected = 
+`if (condition === true && bam !== false) {
+  return console.log("boom");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+});
+
+describe('try catch statements', ()=> {
+  it('maps a simple try catch block', ()=> {
+    const example = 
+`try
+  boom()
+catch err
+  console.log 'error'
+`;
+    const expected = 
+`try {
+  return boom();
+} catch (err) {
+  return console.log("error");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps a try catch finally block', ()=> {
+    const example = 
+`try
+  boom()
+catch err
+  console.log 'error'
+finally
+  say 'finally'
+`;
+    const expected = 
+`try {
+  return boom();
+} catch (err) {
+  return console.log("error");
+} finally {
+  return say("finally");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+});
+
+describe('array comprehensions', ()=> {
+  it('should convert in expressions with arrays to includes', ()=> {
   });
 });
