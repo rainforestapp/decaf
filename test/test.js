@@ -1,5 +1,4 @@
 import expect from 'expect';
-import {convert} from 'decaffeinate';
 import {compile as _compile, mapLiteral} from '../src/parser';
 
 function compile (source) {
@@ -77,6 +76,10 @@ describe('Boolean Expression', ()=> {
 
   it('!!!b', ()=> {
     expect(compile('!!!b')).toBe('!!!b;');
+  });
+
+  it(`'hello' in items`, ()=> {
+    expect(compile(`'hello' in items`)).toBe(`items.includes("hello");`);
   });
 });
 

@@ -322,6 +322,17 @@ export function mapBlockStatement(node, scope) {
   }));
 }
 
+export function mapInArrayExpression(node, scope) {
+  return b.memberExpression(
+    mapExpression(node.array),
+    b.callExpression(
+      b.identifier('includes'),
+      [mapExpression(node.object)]
+    )
+  );
+  //return b.callExpression()
+}
+
 export function mapFunction(node, scope) {
   let constructor = b.functionExpression;
   const args = mapArguments(node.params, scope);
@@ -344,7 +355,7 @@ export function mapExpression(node, scope) {
     return mapAssignmentExpression(node, scope);
   } else if (type === 'Param') {
     return mapExpression(node.name, scope);
-  }else if (type === 'Class') {
+  } else if (type === 'Class') {
     return mapClassExpression(node, scope);
   } else if (type === 'Extends') {
     return mapExpression(node.parent, scope);
@@ -354,8 +365,10 @@ export function mapExpression(node, scope) {
     return mapExpression(node.index, scope);
   } else if (type === 'Access') {
     return mapExpression(node.name, scope);
-  } else if (type === 'Literal'){
+  } else if (type === 'Literal') {
     return mapLiteral({base: node}, scope);
+  } else if (type === 'In') {
+    return mapInArrayExpression(node, scope);
   } else if (type === 'Value') {
     return mapValue(node, scope);
   } else if (type === 'Op') {
