@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "mocha --compilers js:babel-core/register",
-    "watchTest": "mocha --watch --compilers js:babel-core/register"
+    "test": "mocha --compilers js:babel-core/register -R ../../../reporter",
+    "watchTest": "mocha --watch --compilers js:babel-core/register -R ../../../reporter"
   },
   "author": "",
   "license": "ISC",
@@ -21,5 +21,10 @@
     "mocha": "2.3.4",
     "recast": "juliankrispel/recast#implements-keyword",
     "source-map-support": "0.3.3"
+  },
+  "devDependencies": {
+    "babel-plugin-object-assign": "1.2.1",
+    "babel-plugin-transform-object-assign": "6.1.18",
+    "mocha": "2.3.4"
   }
 }

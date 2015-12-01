@@ -1,6 +1,6 @@
 import {namedTypes, builders as b} from 'ast-types';
 import recast from 'recast';
-import {compile as cc, nodes as coffeeAst} from 'coffee-script';
+import {compile as coffeeCompile, nodes as coffeeAst} from 'coffee-script';
 import _ from 'lodash';
 
 // regexes taken from coffeescript parser
@@ -35,7 +35,7 @@ export function isExpression(node) {
   return true;
 }
 
-export function mapBoolean(node, scope) {
+export function mapBoolean(node, meta) {
   if (node.base.val === 'true') {
     return b.literal(true);
   } else if (node.base.val === 'false') {
@@ -50,22 +50,22 @@ export function stringToRegex(inputstring) {
   return new RegExp(match[1], match[2]);
 }
 
-export function mapMemberExpression(properties, scope) {
+export function mapMemberExpression(properties, meta) {
   const restProperties = properties.slice(0, properties.length-1);
-  const right = mapExpression(properties[properties.length-1], scope);
+  const right = mapExpression(properties[properties.length-1], meta);
   const computed = right.type === 'Literal';
   let left;
 
   if (restProperties.length === 1) {
-    left = mapExpression(restProperties[0], scope);
+    left = mapExpression(restProperties[0], meta);
   } else {
-    left = mapMemberExpression(restProperties, scope);
+    left = mapMemberExpression(restProperties, meta);
   }
 
   return b.memberExpression(left, right, computed);
 }
 
-export function mapLiteral(node, scope) {
+export function mapLiteral(node, meta) {
   let value;
   value = node.base.value;
 
@@ -82,70 +82,78 @@ export function mapLiteral(node, scope) {
   return b.identifier(value);
 }
 
-export function mapKey(node, scope) {
+export function mapKey(node, meta) {
   const type = node.base.constructor.name;
   if (type === 'Literal') {
     return b.identifier(node.base.value);
   }
 }
 
-export function mapObjectExpression(node, scope) {
+export function mapObjectExpression(node, meta) {
   return b.objectExpression(node.base.properties.map((property)=> {
     return b.property(
       'init', 
-      mapExpression(property.variable || property.base, scope),
-      mapExpression(property.value || property.base, scope));
+      mapExpression(property.variable || property.base, meta),
+      mapExpression(property.value || property.base, meta));
   }));
 }
 
-export function mapValue(node, scope) {
+export function mapArrayExpression(node, meta) {
+  return b.arrayExpression(node.objects.map((expr) => mapExpression(expr, meta)));
+}
+
+export function mapValue(node, meta) {
   const type = node.base.constructor.name;
   let literal;
 
   if (type === 'Literal') {
-    return mapLiteral(node, scope);
+    return mapLiteral(node, meta);
   } else if (type === 'Bool') {
-    return mapBoolean(node, scope);
+    return mapBoolean(node, meta);
+  } else if (type === 'Arr' && meta.left === true) {
+    return mapArrayPattern(node.base, meta);
   } else if (type === 'Arr') {
-    return mapArrayPattern(node.base, scope);
+    return mapArrayExpression(node.base, meta);
   } else if (type === 'Obj') {
-    return mapObjectExpression(node, scope);
+    return mapObjectExpression(node, meta);
   } else if (type === 'Parens') {
-    return b.sequenceExpression(node.base.body.expressions.map((expr) => mapExpression(expr, scope)));
+    return b.sequenceExpression(node.base.body.expressions.map((expr) => mapExpression(expr, meta)));
   }
 
   throw new Error(`can't convert node of type: ${type} to value - not recognized`);
 }
 
-export function mapOp(node, scope) {
+export function mapOp(node, meta) {
   const {operator} = node;
   if (operator === '||' || operator === '&&') {
-    return b.logicalExpression(node.operator, mapExpression(node.first, scope), mapExpression(node.second, scope));
+    return b.logicalExpression(node.operator, mapExpression(node.first, meta), mapExpression(node.second, meta));
   } else if (operator === '!') {
-    return b.unaryExpression(node.operator, mapExpression(node.first, scope));
+    return b.unaryExpression(node.operator, mapExpression(node.first, meta));
   }
-  return b.binaryExpression(node.operator, mapExpression(node.first, scope), mapExpression(node.second, scope));
+  return b.binaryExpression(node.operator, mapExpression(node.first, meta), mapExpression(node.second, meta));
 }
 
-export function mapArguments(args, scope) {
-  return args.map((arg)=> mapExpression(arg, scope));
+export function mapArguments(args, meta) {
+  return args.map((arg)=> mapExpression(arg, meta));
 }
 
-export function mapCall(node, scope) {
-  return b.callExpression(mapExpression(node.variable, scope), mapArguments(node.args, scope));
+export function mapCall(node, meta) {
+  return b.callExpression(
+    mapExpression(node.variable, meta),
+    mapArguments(node.args, meta));
 }
 
-export function mapAssignment(node, scope) {
+export function mapAssignment(node, meta) {
   const identifierName = node.variable.base.value;
 
-  if(scope[identifierName] === undefined && node.variable.properties.length === 0) {
-    return mapVariableDeclaration(node, scope);
+  if(meta[identifierName] === undefined && node.variable.properties.length === 0) {
+    return mapVariableDeclaration(node, meta);
   }
 
-  return b.expressionStatement(mapExpression(node, scope));
+  return b.expressionStatement(mapExpression(node, meta));
 }
 
-export function mapClassBodyElement(node, scope) {
+export function mapClassBodyElement(node, meta) {
   const {type} = node.constructor.name;
   const methodName = node.variable.base.value;
   let elementType = 'method';
@@ -154,7 +162,7 @@ export function mapClassBodyElement(node, scope) {
     elementType = 'constructor';
   }
 
-  return b.methodDefinition(elementType, mapExpression(node.variable, scope), mapExpression(node.value, scope));
+  return b.methodDefinition(elementType, mapExpression(node.variable, meta), mapExpression(node.value, meta));
 }
 
 export function getBoundMethodNames(classElements) {
@@ -173,7 +181,7 @@ export function unbindMethods(classElements) {
   })
 }
 
-export function mapClassBody(node, scope) {
+export function mapClassBody(node, meta) {
   const {expressions} = node;
   let boundMethods = [];
   let classElements = [];
@@ -182,7 +190,7 @@ export function mapClassBody(node, scope) {
     classElements = node.expressions[0].base.properties;
     boundMethods = getBoundMethodNames(classElements);
     classElements = unbindMethods(classElements);
-    classElements = classElements.map( el => mapClassBodyElement(el, scope));
+    classElements = classElements.map( el => mapClassBodyElement(el, meta));
   }
 
   let constructor = _.findWhere(classElements, {kind: 'constructor'});
@@ -222,121 +230,124 @@ export function mapClassBody(node, scope) {
   return null;
 }
 
-export function mapClassExpression(node, scope) {
+export function mapClassExpression(node, meta) {
   let parent = null;
 
   if (node.parent !== undefined && node.parent !== null) {
-    parent = mapExpression(node.parent, scope);
+    parent = mapExpression(node.parent, meta);
   }
 
   return b.classExpression(
-    mapExpression(node.variable, scope),
-    mapClassBody(node.body, scope),
+    mapExpression(node.variable, meta),
+    mapClassBody(node.body, meta),
     parent
   )
 }
 
 
-export function mapClassDeclaration(node, scope) {
+export function mapClassDeclaration(node, meta) {
   let parent = null;
 
   if (node.parent !== undefined && node.parent !== null) {
-    parent = mapExpression(node.parent, scope);
+    parent = mapExpression(node.parent, meta);
   }
 
   return b.classDeclaration(
-    mapExpression(node.variable, scope),
-    mapClassBody(node.body, scope),
+    mapExpression(node.variable, meta),
+    mapClassBody(node.body, meta),
     parent
   )
 }
 
-export function mapElseBlock (node, scope) {
+export function mapElseBlock (node, meta) {
   const type = node.constructor.name;
 
   if(type === 'If') {
-    return mapIfStatement(node, scope);
+    return mapIfStatement(node, meta);
   } else if (type === 'Block') {
-    return mapBlockStatement(node, scope);
+    return mapBlockStatement(node, meta);
   }
 
-  return mapBlockStatement({expressions: [node]}, scope);
+  return mapBlockStatement({expressions: [node]}, meta);
 
   throw new Error(`can't convert node of type: ${type} to ElseBlock - not recognized`);
 }
 
-export function mapIfStatement(node, scope) {
+export function mapIfStatement(node, meta) {
   let alternate = null;
   if(node.elseBody) {
-    alternate = mapElseBlock(node.elseBody.expressions[0]);
+    alternate = mapElseBlock(node.elseBody.expressions[0], meta);
   }
   return b.ifStatement(
-    mapExpression(node.condition),
-    mapBlockStatement(node.body),
+    mapExpression(node.condition, meta),
+    mapBlockStatement(node.body, meta),
     alternate
   );
 }
 
-export function mapTryCatchBlock(node, scope) {
+export function mapTryCatchBlock(node, meta) {
   let finalize = null;
   if(node.ensure) {
-    finalize = mapBlockStatement(node.ensure)
+    finalize = mapBlockStatement(node.ensure, meta)
   }
   return b.tryStatement(
-    mapBlockStatement(node.attempt, scope),
+    mapBlockStatement(node.attempt, meta),
     b.catchClause(
-      mapLiteral({base: node.errorVariable}, scope),
+      mapLiteral({base: node.errorVariable}, meta),
       null,
-      mapBlockStatement(node.recovery, scope)
+      mapBlockStatement(node.recovery, meta)
     ),
     finalize
   );
 }
 
-export function mapStatement(node, scope) {
+export function mapStatement(node, meta) {
   const type = node.constructor.name;
 
   if (type === 'Assign') {
     const identifierName = node.variable.base.value;
-    return mapAssignment(node, scope);
+    return mapAssignment(node, meta);
+  } else if (type === 'For') {
+    return mapForStatement(node, meta);
   } else if (type === 'Class') {
-    return mapClassDeclaration(node, scope);
+    return mapClassDeclaration(node, meta);
+  } else if (type === 'Switch') {
+    return mapSwitchStatement(node, meta);
   } else if (type === 'If') {
-    return mapIfStatement(node, scope);
+    return mapIfStatement(node, meta);
   } else if (type === 'Try') {
-    return mapTryCatchBlock(node, scope);
+    return mapTryCatchBlock(node, meta);
   }
 
-  return b.expressionStatement(mapExpression(node, scope));
+  return b.expressionStatement(mapExpression(node, meta));
 
   throw new Error(`can't convert node of type: ${type} to statement - not recognized`);
 }
 
-export function mapBlockStatement(node, scope) {
+export function mapBlockStatement(node, meta) {
   const lastIndex = node.expressions.length - 1;
   return b.blockStatement(node.expressions.map((expr, i) => {
     if (i === lastIndex && isExpression(expr)) {
-      return b.returnStatement(mapExpression(expr, scope));
+      return b.returnStatement(mapExpression(expr, meta));
     }
-    return mapStatement(expr, scope);
+    return mapStatement(expr, meta);
   }));
 }
 
-export function mapInArrayExpression(node, scope) {
+export function mapInArrayExpression(node, meta) {
   return b.memberExpression(
-    mapExpression(node.array),
+    mapExpression(node.array, meta),
     b.callExpression(
       b.identifier('includes'),
-      [mapExpression(node.object)]
+      [mapExpression(node.object, meta)]
     )
   );
-  //return b.callExpression()
 }
 
-export function mapFunction(node, scope) {
+export function mapFunction(node, meta) {
   let constructor = b.functionExpression;
-  const args = mapArguments(node.params, scope);
-  const block = mapBlockStatement(node.body, scope);
+  const args = mapArguments(node.params, meta);
+  const block = mapBlockStatement(node.body, meta);
 
   if (node.bound === true) {
     return b.arrowFunctionExpression(args, block);
@@ -345,42 +356,101 @@ export function mapFunction(node, scope) {
   return b.functionExpression(null, args, block);
 }
 
-export function mapExpression(node, scope) {
-  //IS_REGEX.test(node.value.base.value)
+
+export function mapSwitchCase(node, meta) {
+  let [test, block] = node;
+  if (test !== null) {
+    test = mapExpression(test, meta);
+  }
+  return b.switchCase(
+    test,
+    block.expressions.map((expr) => mapStatement(expr, meta))
+  );
+}
+
+export function mapSwitchStatement(node, meta) {
+  let cases = [];
+
+  if (node.cases && node.cases.length > 0) {
+    cases = cases.concat(node.cases);
+  }
+
+  if (node.otherwise) {
+    cases.push([null, node.otherwise]);
+  }
+
+  return b.switchStatement(
+    mapExpression(node.subject, meta),
+    cases.map((expr) => mapSwitchCase(expr, meta))
+  );
+}
+
+export function mapForStatement(node, meta) {
+  if(node.object === false) {
+    return b.forInStatement(
+      b.variableDeclaration(
+        'let', 
+        [mapExpression(node.name, Object.assign({}, meta, { left: true }))]
+      ),
+      mapExpression(node.source, meta),
+      mapBlockStatement(node.body, meta)
+    );
+  }
+}
+
+
+export function mapForExpression(node, meta) {
+  return b.memberExpression(
+    mapExpression(node.source, meta),
+    b.callExpression(
+      b.identifier('map'),
+      [
+        b.arrowFunctionExpression(
+          [mapExpression(node.name, meta)],
+          mapBlockStatement(node.body, meta)
+        )
+      ]
+    )
+  )
+}
+
+export function mapExpression(node, meta) {
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties]);
   } else if (type === 'Assign') {
-    return mapAssignmentExpression(node, scope);
-  } else if (type === 'Param') {
-    return mapExpression(node.name, scope);
+    return mapAssignmentExpression(node, meta);
+  } else if (type === 'For') {
+    return mapForExpression(node, meta);
+  }else if (type === 'Param') {
+    return mapExpression(node.name, meta);
   } else if (type === 'Class') {
-    return mapClassExpression(node, scope);
+    return mapClassExpression(node, meta);
   } else if (type === 'Extends') {
-    return mapExpression(node.parent, scope);
+    return mapExpression(node.parent, meta);
   } else if (type === 'Code') { // Code is just a stupid word for function
-    return mapFunction(node, scope);
+    return mapFunction(node, meta);
   } else if (type === 'Index') {
-    return mapExpression(node.index, scope);
+    return mapExpression(node.index, meta);
   } else if (type === 'Access') {
-    return mapExpression(node.name, scope);
+    return mapExpression(node.name, meta);
   } else if (type === 'Literal') {
-    return mapLiteral({base: node}, scope);
+    return mapLiteral({base: node}, meta);
   } else if (type === 'In') {
-    return mapInArrayExpression(node, scope);
+    return mapInArrayExpression(node, meta);
   } else if (type === 'Value') {
-    return mapValue(node, scope);
+    return mapValue(node, meta);
   } else if (type === 'Op') {
-    return mapOp(node, scope);
+    return mapOp(node, meta);
   } else if(type === 'Call') {
-    return mapCall(node, scope);
+    return mapCall(node, meta);
   }
 
   throw new Error(`can't convert node of type: ${type} to Expression - not recognized`);
 }
 
-export function mapAssignmentExpression(node, scope) {
+export function mapAssignmentExpression(node, meta) {
   const leftHandType = node.variable.base.constructor.name;
   const identifierName = node.variable.base.value;
   let leftHand;
@@ -391,26 +461,26 @@ export function mapAssignmentExpression(node, scope) {
 
   return b.assignmentExpression(
     '=',
-    mapExpression(node.variable, scope),
-    mapExpression(node.value, scope));
+    mapExpression(node.variable, meta),
+    mapExpression(node.value, meta));
 }
 
-export function mapObjectPatternItem(node, scope) {
+export function mapObjectPatternItem(node, meta) {
   const type = node.constructor.name;
   if(type === 'Value') {
-    return mapLiteral(node, scope);
+    return mapLiteral(node, meta);
   } else if (type === 'Assign') {
     if (node.value.base.properties) {
-      return mapObjectPattern(node.value.base.properties, scope);
+      return mapObjectPattern(node.value.base.properties, meta);
     } else {
-      return mapExpression(node.value);
+      return mapExpression(node.value, meta);
     }
   }
 
   throw new Error(`can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
 }
 
-export function mapObjectPattern(nodes, scope) {
+export function mapObjectPattern(nodes, meta) {
   return b.objectPattern(nodes.map((node) => {
     const {operatorToken} = node;
     const {value, variable} = node;
@@ -419,8 +489,8 @@ export function mapObjectPattern(nodes, scope) {
     let prop;
     prop = b.property(
       'init',
-      mapKey(node.variable || node),
-      mapObjectPatternItem(node)
+      mapKey(node.variable || node, meta),
+      mapObjectPatternItem(node, meta)
     );
 
     if(operatorToken === undefined) {
@@ -430,52 +500,52 @@ export function mapObjectPattern(nodes, scope) {
   }));
 }
 
-export function mapArrayPattern(node, scope) {
+export function mapArrayPattern(node, meta) {
   return b.arrayPattern(node.objects.map((prop)=> {
     const type = prop.base.constructor.name;
     if (type === 'Literal') {
-      return mapLiteral(prop, scope);
+      return mapLiteral(prop, meta);
     } else if (type === 'Arr') {
-      return mapArrayPattern(prop.base, scope);
+      return mapArrayPattern(prop.base, meta);
     } else if (type === 'Obj') {
-      return mapObjectPattern(prop.base.properties, scope);
+      return mapObjectPattern(prop.base.properties, Object.assign({}, meta, {left: true}));
     }
   }));
 }
 
-export function mapAssignmentPattern(node, scope) {
+export function mapAssignmentPattern(node, meta) {
   // that's a destructuring assignment
   const type = node.constructor.name;
 
   if (type === 'Obj' && node.properties) {
-    return mapObjectPattern(node.properties, scope);
+    return mapObjectPattern(node.properties, meta);
   } else if (type === 'Arr') {
-    return mapArrayPattern(node, scope);
+    return mapArrayPattern(node, meta);
   }
 
-  return mapExpression(node, scope);
+  return mapExpression(node, meta);
 }
 
-export function mapAssignmentLeftHand(node, scope) {
+export function mapAssignmentLeftHand(node, meta) {
   const type = node.constructor.name;
   if (type === 'Value') {
-    return mapAssignmentPattern(node.base, scope);
+    return mapAssignmentPattern(node.base, meta);
   }
-  return mapExpression(node, scope);
+  return mapExpression(node, meta);
 }
 
-export function mapVariableDeclaration(node, scope) {
+export function mapVariableDeclaration(node, meta) {
   const identifierName = node.variable.base.value;
-  scope[identifierName] = true;
+  meta[identifierName] = true;
   return b.variableDeclaration('var', [
     b.variableDeclarator(
-      mapAssignmentLeftHand(node.variable, scope), 
-      mapExpression(node.value, scope))]);
+      mapAssignmentLeftHand(node.variable, meta), 
+      mapExpression(node.value, meta))]);
 }
 
-export function parse(coffeeSource, baseScope={}) {
+export function parse(coffeeSource, basemeta={}) {
   const ast = coffeeAst(coffeeSource);
-  const body = ast.expressions.map((node) => mapStatement(node, baseScope));
+  const body = ast.expressions.map((node) => mapStatement(node, basemeta));
   const program = b.program(body);
   return program;
 }

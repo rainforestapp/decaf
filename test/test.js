@@ -31,6 +31,10 @@ describe('Primitives', ()=> {
     expect(compile('false')).toBe('false;');
   });
 
+  it('arrays', ()=> {
+    expect(compile('[1, 2, 3]')).toBe('[1, 2, 3];');
+  });
+
   it('objects', ()=> {
     expect(compile('a: 213, b: "321"')).toBe('({\n  a: 213,\n  b: "321"\n});');
     expect(compile('false')).toBe('false;');
@@ -449,7 +453,53 @@ finally
   });
 });
 
-describe('array comprehensions', ()=> {
-  it('should convert in expressions with arrays to includes', ()=> {
+describe('switch blocks', ()=> {
+  it('should print a simple switch statement', ()=> {
+    const example = 
+`switch word
+  when 'hello' then say 'hello'
+  when 'bye' then say 'bye'
+  else say 'whatever'`;
+    const expected = 
+`switch (word) {
+case "hello":
+  say("hello");
+case "bye":
+  say("bye");
+default:
+  say("whatever");
+}`;
+    expect(compile(example)).toBe(expected);
+  });
+});
+
+describe('comprehensions', ()=> {
+  it('simple for loop', ()=> {
+    const example = 
+`for food in ['toast', 'cheese', 'wine']
+  eat food`;
+    const expected =
+`for (let food in ["toast", "cheese", "wine"]) {
+  return eat(food);
+}`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('for comprehension assigned with assignment', ()=> {
+    const example = 
+`res = for food in ['toast', 'cheese', 'wine']
+  eat food`;
+    const expected =
+`var res = ["toast", "cheese", "wine"].map(food => {
+  return eat(food);
+});`
+    expect(compile(example)).toBe(expected);
+  });
+});
+
+describe('ranges', ()=> {
+  it('simple ranges', ()=> {
+    const example = `[1...10]`
+    const expected = `[1, 2, 3, 4, 5, 6, 7, 8, 9];`
   });
 });
