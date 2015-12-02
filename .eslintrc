@@ -8,6 +8,7 @@
   },
   "rules": {
     "valid-jsdoc": 2,
+    "no-use-before-define": 0,
     "comma-dangle": [2, "always-multiline"],
     "id-length": [2, {"exceptions": ["_", "$"]}]
   },
