@@ -1,7 +1,7 @@
 import expect from 'expect';
-import {compile as _compile, mapLiteral} from '../src/parser';
+import {compile as _compile} from '../src/parser';
 
-function compile (source) {
+function compile(source) {
   return _compile(source, {tabWidth: 2}).code;
 }
 
@@ -90,36 +90,36 @@ describe('Boolean Expression', ()=> {
 describe('AssigmentExpression', ()=>{
   it('assigns strings', ()=> {
     expect(compile('bam = "hello"')).toBe('var bam = "hello";');
-  })
+  });
 
   it(`doesn't declare variables twice`, ()=> {
-    const example = 
+    const example =
 `bam = 'hello'
-bam = 'bye'`
+bam = 'bye'`;
 
-    const expected = 
+    const expected =
 `var bam = "hello";
-bam = "bye";`
+bam = "bye";`;
     expect(compile(example)).toBe(expected);
-  })
+  });
 
   it('assigns objects', ()=> {
     const example = 'b = a: 1';
-    const expected = 
+    const expected =
 `var b = {
   a: 1
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
 
   it('assigns big objects', ()=> {
-    const example = 
-`b = 
+    const example =
+`b =
   a: 1,
-  c: 
+  c:
     a: 'bom'
     b: 3`;
-    const expected = 
+    const expected =
 `var b = {
   a: 1,
 
@@ -127,78 +127,72 @@ bam = "bye";`
     a: "bom",
     b: 3
   }
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
 });
 
 describe('FunctionExpression', ()=> {
   it('renders a simple function expression', ()=> {
-
-    const example = 
-`fn = (a,b) -> console.log a, b `
-
-    const expected = 
+    const example = `fn = (a,b) -> console.log a, b`;
+    const expected =
 `var fn = function(a, b) {
   return console.log(a, b);
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
 
   it('renders an arrow function expression', ()=> {
-    const example = 
-`fn = (a,b) => console.log a, b`
-
-    const expected = 
+    const example = `fn = (a,b) => console.log a, b`;
+    const expected =
 `var fn = (a, b) => {
   return console.log(a, b);
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
-
 });
 
 describe('ClassExpression', ()=> {
   it('renders a simple class expression', ()=> {
-    const example = `class A`
-    const expected = `class A {}`
+    const example = `class A`;
+    const expected = `class A {}`;
     expect(compile(example)).toBe(expected);
   });
 
   it('renders a simple class expression with a method', ()=> {
-    const example = 
+    const example =
 `class A
   b: -> bom + 123
-`
-    const expected = 
+`;
+    const expected =
 `class A {
   b() {
     return bom + 123;
   }
-}`
+}`;
     expect(compile(example)).toBe(expected);
   });
 
   it('renders an assignment with a simple class expression with a method', ()=> {
-    const example = 
+    const example =
 `aClass = class A
   b: -> bom + 123
-`
-    const expected = 
+`;
+    const expected =
 `var aClass = class A {
   b() {
     return bom + 123;
   }
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
 
   it('binds fat arrow class methods in the constructor', ()=> {
-    const example = 
+    const example =
 `aClass = class A
   b: => bom + 123
-`
-    const expected = 
+`;
+    const expected =
 `var aClass = class A {
   constructor() {
     this.b.bind(this);
@@ -207,49 +201,49 @@ describe('ClassExpression', ()=> {
   b() {
     return bom + 123;
   }
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
 
   it('extends a class with the extend keyword', ()=> {
-    const example = 
+    const example =
 `class A extends B
   b: -> bom + 123
-`
-    const expected = 
+`;
+    const expected =
 `class A extends B {
   b() {
     return bom + 123;
   }
-}`
+}`;
     expect(compile(example)).toBe(expected);
   });
 
   it('assigns an extended class to a variable', ()=> {
-    const example = 
+    const example =
 `a = class A extends B
   b: -> bom + 123
-`
-    const expected = 
+`;
+    const expected =
 `var a = class A extends B {
   b() {
     return bom + 123;
   }
-};`
+};`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps @ to this', ()=> {
-    const example = 
+    const example =
 `class A extends B
-  b: -> @bom 1, 2, 'hey'`
+  b: -> @bom 1, 2, 'hey'`;
 
-    const expected = 
+    const expected =
 `class A extends B {
   b() {
     return this.bom(1, 2, "hey");
   }
-}`
+}`;
     expect(compile(example)).toBe(expected);
   });
 });
@@ -258,17 +252,17 @@ describe('ClassExpression', ()=> {
 describe('Destructuring', ()=> {
   it('maps simple object destructuring assignments', ()=> {
     const example = `{a, b} = abam`;
-    const expected = 
+    const expected =
 `var {
   a,
   b
-} = abam;`
+} = abam;`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps deep object destructuring assignments', ()=> {
     const example = `{a, b: {c: {d}}} = abam`;
-    const expected = 
+    const expected =
 `var {
   a,
 
@@ -277,65 +271,65 @@ describe('Destructuring', ()=> {
       d
     }
   }
-} = abam;`
+} = abam;`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps simple array destructuring assignments', ()=> {
     const example = `[a, b, c] = abam`;
-    const expected = `var [a, b, c] = abam;`
+    const expected = `var [a, b, c] = abam;`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps nested array destructuring assignments', ()=> {
     const example = `[a, [b, [c]]] = abam`;
-    const expected = `var [a, [b, [c]]] = abam;`
+    const expected = `var [a, [b, [c]]] = abam;`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps object destructuring assignment inside array destructuring assignment', ()=> {
     const example = `[{a: {b: 123}}, b] = bam`;
-    const expected = 
+    const expected =
 `var [{
   a: {
     b: 123
   }
-}, b] = bam;`
+}, b] = bam;`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps array destructuring assignment inside object destructuring assignment', ()=> {
     const example = `{a: [b, c]} = bam`;
-    const expected = 
+    const expected =
 `var {
   a: [b, c]
-} = bam;`
+} = bam;`;
     expect(compile(example)).toBe(expected);
   });
 });
 
 describe('conditional statements', ()=> {
   it('maps simple if statement', ()=> {
-    const example = 
+    const example =
 `
 if explosion is true
   alert 'BOOM'
 `;
-    const expected = 
+    const expected =
 `if (explosion === true) {
   return alert("BOOM");
-}`
+}`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps nested if statements ', ()=> {
-    const example = 
+    const example =
 `
 if explosion is true
   if fake isnt false
     alert 'BOOM'
 `;
-    const expected = 
+    const expected =
 `if (explosion === true) {
   if (fake !== false) {
     return alert("BOOM");
@@ -345,12 +339,12 @@ if explosion is true
   });
 
   it('maps if statements with multiple conditions ', ()=> {
-    const example = 
+    const example =
 `
 if explosion is true and boom is false and other
   alert 'BOOM'
 `;
-    const expected = 
+    const expected =
 `if (explosion === true && boom === false && other) {
   return alert("BOOM");
 }`;
@@ -358,7 +352,7 @@ if explosion is true and boom is false and other
   });
 
   it('maps if statements with else statements ', ()=> {
-    const example = 
+    const example =
 `
 if explosion is true
   alert 'BOOM'
@@ -369,7 +363,7 @@ else if explosion is false
 else
   alert 'NOTHING'
 `;
-    const expected = 
+    const expected =
 `if (explosion === true) {
   return alert("BOOM");
 } else if (explosion === false) {
@@ -383,10 +377,10 @@ else
   });
 
   it('maps unless statements', ()=> {
-    const example = 
+    const example =
 `unless explosion is false
   alert 'BOOM'`;
-    const expected = 
+    const expected =
 `if (explosion !== false) {
   return alert("BOOM");
 }`;
@@ -394,9 +388,9 @@ else
   });
 
   it('maps reverse if statements', ()=> {
-    const example = 
+    const example =
 `console.log 'boom' if condition is true`;
-    const expected = 
+    const expected =
 `if (condition === true) {
   return console.log("boom");
 }`;
@@ -404,26 +398,25 @@ else
   });
 
   it('maps long reverse if statements', ()=> {
-    const example = 
+    const example =
 `console.log 'boom' if condition is true and bam isnt false`;
-    const expected = 
+    const expected =
 `if (condition === true && bam !== false) {
   return console.log("boom");
 }`;
     expect(compile(example)).toBe(expected);
   });
-
 });
 
 describe('try catch statements', ()=> {
   it('maps a simple try catch block', ()=> {
-    const example = 
+    const example =
 `try
   boom()
 catch err
   console.log 'error'
 `;
-    const expected = 
+    const expected =
 `try {
   return boom();
 } catch (err) {
@@ -433,7 +426,7 @@ catch err
   });
 
   it('maps a try catch finally block', ()=> {
-    const example = 
+    const example =
 `try
   boom()
 catch err
@@ -441,7 +434,7 @@ catch err
 finally
   say 'finally'
 `;
-    const expected = 
+    const expected =
 `try {
   return boom();
 } catch (err) {
@@ -455,12 +448,12 @@ finally
 
 describe('switch blocks', ()=> {
   it('should print a simple switch statement', ()=> {
-    const example = 
+    const example =
 `switch word
   when 'hello' then say 'hello'
   when 'bye' then say 'bye'
   else say 'whatever'`;
-    const expected = 
+    const expected =
 `switch (word) {
 case "hello":
   say("hello");
@@ -475,31 +468,74 @@ default:
 
 describe('comprehensions', ()=> {
   it('simple for loop', ()=> {
-    const example = 
+    const example =
 `for food in ['toast', 'cheese', 'wine']
   eat food`;
     const expected =
 `for (let food in ["toast", "cheese", "wine"]) {
   return eat(food);
-}`
+}`;
     expect(compile(example)).toBe(expected);
   });
 
   it('for comprehension assigned with assignment', ()=> {
-    const example = 
+    const example =
 `res = for food in ['toast', 'cheese', 'wine']
   eat food`;
     const expected =
 `var res = ["toast", "cheese", "wine"].map(food => {
   return eat(food);
-});`
+});`;
     expect(compile(example)).toBe(expected);
   });
 });
 
 describe('ranges', ()=> {
   it('simple ranges', ()=> {
-    const example = `[1...10]`
-    const expected = `[1, 2, 3, 4, 5, 6, 7, 8, 9];`
+    const example = `[1...10]`;
+    const expected = `[1, 2, 3, 4, 5, 6, 7, 8, 9];`;
+
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('uses coffeescript parser for generated ranges', ()=> {
+    const example = `[1...bom]`;
+    const expected =
+`(function() {
+  results = [];
+
+  for (var i = 1; (1 <= bom ? i < bom : i > bom); (1 <= bom ? i++ : i--)) {
+    results.push(i);
+  }
+
+  return results;
+}).apply(this);`;
+
+    expect(compile(example)).toBe(expected);
+  });
+});
+
+describe('splats', ()=> {
+  it('should convert coffeescript splats', ()=> {
+  });
+});
+
+describe('slices', ()=> {
+  it('bam[1...10]', ()=> {
+    const example = `bam[1...10]`;
+    const expected = `bam.splice(1, 10);`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('bam[a()...b()]', ()=> {
+    const example = `bam[a()...b()]`;
+    const expected = `bam.splice(a(), b());`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it(`bam[a['dwq'].bom...100]`, ()=> {
+    const example = `bam[a['dwq'].bom...100]`;
+    const expected = `bam.splice(a["dwq"].bom, 100);`;
+    expect(compile(example)).toBe(expected);
   });
 });

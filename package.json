@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha --compilers js:babel-core/register -R ../../../reporter",
-    "watchTest": "mocha --watch --compilers js:babel-core/register -R ../../../reporter"
+    "watchTest": "mocha -w --compilers js:babel-core/register -R ../../../reporter",
+    "watchTestDebug": "mocha -w debug --compilers js:babel-core/register"
   },
   "author": "",
   "license": "ISC",

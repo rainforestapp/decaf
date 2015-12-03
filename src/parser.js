@@ -1,6 +1,7 @@
 import {builders as b} from 'ast-types';
 import recast from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
+import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import _ from 'lodash';
 
 // regexes taken from coffeescript parser
@@ -89,11 +90,28 @@ export function mapArrayExpression(node, meta) {
   return b.arrayExpression(node.objects.map((expr) => mapExpression(expr, meta)));
 }
 
+export function mapRange(node, meta) {
+  const compiledRange = recast.parse(node.compile(meta)).program.body[0];
+  return compiledRange.expression;
+}
+
+export function mapSlice(node, meta) {
+  return b.callExpression(
+    b.identifier('splice'),
+    [
+      mapExpression(node.range.from, meta),
+      mapExpression(node.range.to, meta),
+    ]
+  );
+}
+
 export function mapValue(node, meta) {
   const type = node.base.constructor.name;
 
   if (type === 'Literal') {
     return mapLiteral(node, meta);
+  } else if (type === 'Range') {
+    return mapRange(node, meta);
   } else if (type === 'Bool') {
     return mapBoolean(node, meta);
   } else if (type === 'Arr' && meta.left === true) {
@@ -400,6 +418,8 @@ export function mapExpression(node, meta) {
     return mapMemberExpression([node.base, ...node.properties]);
   } else if (type === 'Assign') {
     return mapAssignmentExpression(node, meta);
+  } else if (type === 'Slice') {
+    return mapSlice(node, meta);
   } else if (type === 'For') {
     return mapForExpression(node, meta);
   } else if (type === 'Param') {
@@ -510,13 +530,15 @@ export function mapVariableDeclaration(node, meta) {
       mapExpression(node.value, meta))]);
 }
 
-export function parse(coffeeSource, basemeta = {}) {
+export function parse(coffeeSource) {
   const ast = coffeeAst(coffeeSource);
-  const body = ast.expressions.map((node) => mapStatement(node, basemeta));
+  const scope = new Scope(null, parse, null, []);
+  const meta = {scope, indent: ' '};
+  const body = ast.expressions.map((node) => mapStatement(node, meta));
   const program = b.program(body);
   return program;
 }
 
-export function compile(coffeeSource, options = {}) {
-  return recast.print(parse(coffeeSource), options);
+export function compile(coffeeSource, opts) {
+  return recast.prettyPrint(parse(coffeeSource), opts);
 }
