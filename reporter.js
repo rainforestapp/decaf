@@ -2,11 +2,24 @@
  * Module dependencies.
  */
 
-var Base = require('mocha/lib/reporters/base');
-var utils = require('mocha/lib/utils');
-var inherits = utils.inherits;
-var cursor = Base.cursor;
-var color = Base.color;
+const Base = require('mocha/lib/reporters/base');
+const utils = require('mocha/lib/utils');
+const inherits = utils.inherits;
+const cursor = Base.cursor;
+const color = Base.color;
+
+const baseList = Base.list;
+const indent = '      ';
+Base.list = function listErrors(failures) {
+  const fails = failures.map(function(test) {
+    test.err.message = test.err.message
+     .replace(/^Expected/, 'Expected \n' + indent)
+     .replace(/' to be '/, `'\n${indent}to be\n${indent}'`)
+     .replace(/\\n/gi, '\n' + indent);
+     return test;
+  });
+  return baseList(fails);
+};
 
 /**
  * Expose `Spec`.
