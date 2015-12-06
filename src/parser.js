@@ -132,11 +132,19 @@ export function mapValue(node, meta) {
 export function mapOp(node, meta) {
   const {operator} = node;
   if (operator === '||' || operator === '&&') {
-    return b.logicalExpression(node.operator, mapExpression(node.first, meta), mapExpression(node.second, meta));
+    return b.logicalExpression(
+      node.operator,
+      mapExpression(node.first, meta),
+      mapExpression(node.second, meta));
   } else if (operator === '!') {
-    return b.unaryExpression(node.operator, mapExpression(node.first, meta));
+    return b.unaryExpression(
+      node.operator,
+      mapExpression(node.first, meta));
   }
-  return b.binaryExpression(node.operator, mapExpression(node.first, meta), mapExpression(node.second, meta));
+  return b.binaryExpression(
+    node.operator,
+    mapExpression(node.first, meta),
+    mapExpression(node.second, meta));
 }
 
 export function mapArguments(args, meta) {
@@ -144,8 +152,22 @@ export function mapArguments(args, meta) {
 }
 
 export function mapCall(node, meta) {
+  let left;
+  const {methodName} = meta;
+
+  if (node.isSuper === true && methodName === 'constructor') {
+    left = b.identifier('super');
+  } else if(node.isSuper === true){
+    left = b.memberExpression(
+      b.identifier('super'),
+      b.identifier(methodName)
+    );
+  } else {
+    left = mapExpression(node.variable, meta);
+  }
+
   return b.callExpression(
-    mapExpression(node.variable, meta),
+    left,
     mapArguments(node.args, meta));
 }
 
@@ -167,14 +189,22 @@ export function mapClassBodyElement(node, meta) {
     elementType = 'constructor';
   }
 
-  return b.methodDefinition(elementType, mapExpression(node.variable, meta), mapExpression(node.value, meta));
+  const _meta = Object.assign(
+    {}, 
+    meta, 
+    {methodName});
+
+  return b.methodDefinition(
+    elementType,
+    mapExpression(node.variable, _meta),
+    mapExpression(node.value, _meta));
 }
 
-export function getBoundMethodNames(classElements) {
+export function getBoundMethodNames(classElements, meta) {
   return classElements.filter((el)=> {
     return el.value.constructor.name === 'Code' &&
       el.value.bound === true;
-  }).map(el => mapExpression(el.variable));
+  }).map(el => mapExpression(el.variable, meta));
 }
 
 export function unbindMethods(classElements) {
@@ -193,7 +223,7 @@ export function mapClassBody(node, meta) {
 
   if (expressions.length > 0) {
     classElements = node.expressions[0].base.properties;
-    boundMethods = getBoundMethodNames(classElements);
+    boundMethods = getBoundMethodNames(classElements, meta);
     classElements = unbindMethods(classElements);
     classElements = classElements.map( el => mapClassBodyElement(el, meta));
   }
@@ -404,7 +434,7 @@ export function mapArgumentWithExpansion(node, meta, arg) {
       b.expressionStatement(b.assignmentExpression(
         '=',
         expr,
-        mapExpression(node.value)
+        mapExpression(node.value, meta)
       ))
     ));
   }
@@ -632,7 +662,7 @@ function mapLeftHandForExpression(node, meta) {
                       b.identifier('_i'),
                       b.binaryExpression(
                         '+',
-                        mapExpression(node.step),
+                        mapExpression(node.step, meta),
                         b.literal(1)
                       )
                     ),
@@ -673,11 +703,11 @@ export function mapSplatParam(node, meta) {
 
 export function mapParam(node, meta) {
   if (node.value !== undefined && node.value !== null) {
-    return mapExpression(mapParamToAssignment(node));
+    return mapExpression(mapParamToAssignment(node), meta);
   } else if (node.splat === true) {
     return mapSplatParam(node.name, meta);
   }
-  return mapExpression(node.name);
+  return mapExpression(node.name, meta);
 }
 
 export function mapSplat(node, meta) {
@@ -688,7 +718,7 @@ export function mapExpression(node, meta) {
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
-    return mapMemberExpression([node.base, ...node.properties]);
+    return mapMemberExpression([node.base, ...node.properties], meta);
   } else if (type === 'Splat') {
     return mapSplat(node, meta);
   } else if (type === 'Assign') {

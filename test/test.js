@@ -283,6 +283,57 @@ describe('ClassExpression', ()=> {
 }`;
     expect(compile(example)).toBe(expected);
   });
+
+  describe('super', ()=> {
+    it(`maps super 1 to 1 if in constructor`, ()=> {
+      const example =
+`class A
+  constructor: ->
+    super('boom')
+`;
+      const expected =
+`class A {
+  constructor() {
+    return super("boom");
+  }
+}`;
+      expect(compile(example)).toBe(expected);
+    });
+
+    it(`maps to super.<methodName> if not in constructor`, ()=> {
+      const example =
+`class A
+  b: ->
+    super('boom')
+`;
+      const expected =
+`class A {
+  b() {
+    return super.b("boom");
+  }
+}`;
+      expect(compile(example)).toBe(expected);
+    });
+
+    it(`maps to super.<methodName> if not in constructor in a bound method`, ()=> {
+      const example =
+`class A
+  b: =>
+    super('boom')
+`;
+      const expected =
+`class A {
+  constructor() {
+    this.b.bind(this);
+  }
+
+  b() {
+    return super.b("boom");
+  }
+}`;
+      expect(compile(example)).toBe(expected);
+    });
+  });
 });
 
 
