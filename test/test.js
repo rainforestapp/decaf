@@ -142,7 +142,7 @@ describe('FunctionExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('renders an arrow function expression', ()=> {
+  it('fn = (a,b) => console.log a, b', ()=> {
     const example = `fn = (a,b) => console.log a, b`;
     const expected =
 `var fn = (a, b) => {
@@ -150,6 +150,26 @@ describe('FunctionExpression', ()=> {
 };`;
     expect(compile(example)).toBe(expected);
   });
+
+  it('fn = (a = 123, b) => console.log a, b', ()=> {
+    const example = `fn = (a = 123, b) => console.log a, b`;
+    const expected =
+`var fn = (a = 123, b) => {
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('fn = (@a = 123, b) => console.log a, b', ()=> {
+    const example = `fn = (@a = 123, b) => console.log a, b`;
+    const expected =
+`var fn = (a = 123, b) => {
+  this.a = 123;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
 });
 
 describe('ClassExpression', ()=> {

@@ -396,7 +396,6 @@ export function mapForStatement(node, meta) {
 }
 
 function mapLeftHandForExpression(node, meta) {
-  //console.log(' map left hand ', node, meta);
   if(node.step !== undefined) {
     return b.memberExpression(
       mapExpression(node.source, meta),
@@ -452,6 +451,14 @@ export function mapForExpression(node, meta) {
   );
 }
 
+export function mapParam(node, meta) {
+  console.log('map param', node);
+  if(node.value !== undefined) {
+    return mapExpression(mapParamToAssignment(node))
+  }
+  return mapExpression(node.name);
+}
+
 export function mapExpression(node, meta) {
   const type = node.constructor.name;
 
@@ -464,7 +471,7 @@ export function mapExpression(node, meta) {
   } else if (type === 'For') {
     return mapForExpression(node, meta);
   } else if (type === 'Param') {
-    return mapExpression(node.name, meta);
+    return mapParam(node, meta);
   } else if (type === 'Class') {
     return mapClassExpression(node, meta);
   } else if (type === 'Extends') {
@@ -488,6 +495,15 @@ export function mapExpression(node, meta) {
   }
 
   throw new Error(`can't convert node of type: ${type} to Expression - not recognized`);
+}
+
+export function mapParamToAssignment(node, meta){
+  const assignment = {
+    variable: node.name,
+    value: node.value
+  };
+  assignment.constructor = {name: 'Assign'}
+  return assignment;
 }
 
 export function mapAssignmentExpression(node, meta) {
