@@ -395,10 +395,51 @@ export function mapForStatement(node, meta) {
   }
 }
 
+function mapLeftHandForExpression(node, meta) {
+  //console.log(' map left hand ', node, meta);
+  if(node.step !== undefined) {
+    return b.memberExpression(
+      mapExpression(node.source, meta),
+      b.callExpression(
+        b.identifier('filter'),
+        [
+          b.arrowFunctionExpression(
+            [b.identifier('_'), b.identifier('_i')],
+            b.blockStatement(
+              [b.returnStatement(
+                b.logicalExpression(
+                  '||',
+                  b.binaryExpression('===', b.identifier('_i'), b.literal(0)),
+                  b.binaryExpression(
+                    '===',
+                    b.binaryExpression(
+                      '%',
+                      b.identifier('_i'),
+                      b.binaryExpression(
+                        '+',
+                        mapExpression(node.step),
+                        b.literal(1)
+                      )
+                    ),
+                    b.literal(0)
+                  )
+                )
+              )],
+              recast.parse('return _i === 0 || _i % (2 + 1) == 0;').program.body
+            )
+          )
+        ]
+      )
+    )
+  }
+
+  return mapExpression(node.source, meta);
+}
 
 export function mapForExpression(node, meta) {
+  let leftHand = mapLeftHandForExpression(node, meta);
   return b.memberExpression(
-    mapExpression(node.source, meta),
+    leftHand,
     b.callExpression(
       b.identifier('map'),
       [

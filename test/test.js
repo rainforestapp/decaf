@@ -5,7 +5,7 @@ function compile(source) {
   return _compile(source, {tabWidth: 2}).code;
 }
 
-describe('Primitives', ()=> {
+describe('Values', ()=> {
   it('strings', ()=> {
     expect(compile('"yoyoyo"')).toBe('"yoyoyo";');
   });
@@ -488,6 +488,39 @@ describe('comprehensions', ()=> {
 });`;
     expect(compile(example)).toBe(expected);
   });
+
+  it('bam = (x for x in [0...10] by 2)', ()=> {
+    const example = `bam = (x for x in [0...10] by 2)`;
+    const expected = 
+`var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
+  return _i === 0 || _i % (2 + 1) === 0;
+}).map(x => {
+  return x;
+}));`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('bam = (x for x in [0...10] by 4)', ()=> {
+    const example = `bam = (x for x in [0...10] by 4)`;
+    const expected = 
+`var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
+  return _i === 0 || _i % (4 + 1) === 0;
+}).map(x => {
+  return x;
+}));`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('bam = (x for x in [0...10] by num())', ()=> {
+    const example = `bam = (x for x in [0...10] by num())`;
+    const expected = 
+`var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
+  return _i === 0 || _i % (num() + 1) === 0;
+}).map(x => {
+  return x;
+}));`;
+    expect(compile(example)).toBe(expected);
+  });
 });
 
 describe('ranges', ()=> {
@@ -517,6 +550,7 @@ describe('ranges', ()=> {
 
 describe('splats', ()=> {
   it('should convert coffeescript splats', ()=> {
+    const example = `...b`
   });
 });
 
