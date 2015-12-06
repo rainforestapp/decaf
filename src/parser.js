@@ -341,9 +341,42 @@ export function mapInArrayExpression(node, meta) {
   );
 }
 
+export function extractArgumentMemberAssignment(nodes, meta) {
+  return nodes
+  .filter(node =>
+          node.type === 'AssignmentExpression' &&
+          node.left.type === 'MemberExpression')
+  .map((node)=> {
+    return b.expressionStatement(
+      b.assignmentExpression(
+        node.operator,
+        node.left,
+        node.left.property
+      )
+    );
+  });
+}
+
+export function normalizeArguments(nodes, meta) {
+  return nodes.map((node) => {
+    if(node.type === 'AssignmentExpression' &&
+       node.left.type === 'MemberExpression') {
+      return b.assignmentExpression(
+        node.operator,
+        node.left.property,
+        node.right
+      )
+    }
+    return node;
+  });
+}
+
 export function mapFunction(node, meta) {
-  const args = mapArguments(node.params, meta);
+  let args = mapArguments(node.params, meta);
   const block = mapBlockStatement(node.body, meta);
+  const memberAssignments = extractArgumentMemberAssignment(args, meta);
+  block.body = memberAssignments.concat(block.body);
+  args = normalizeArguments(args, meta);
 
   if (node.bound === true) {
     return b.arrowFunctionExpression(args, block);
@@ -452,7 +485,6 @@ export function mapForExpression(node, meta) {
 }
 
 export function mapParam(node, meta) {
-  console.log('map param', node);
   if(node.value !== undefined) {
     return mapExpression(mapParamToAssignment(node))
   }

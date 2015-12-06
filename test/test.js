@@ -133,7 +133,7 @@ bam = "bye";`;
 });
 
 describe('FunctionExpression', ()=> {
-  it('renders a simple function expression', ()=> {
+  it('fn = (a,b) -> console.log a, b', ()=> {
     const example = `fn = (a,b) -> console.log a, b`;
     const expected =
 `var fn = function(a, b) {
@@ -164,12 +164,21 @@ describe('FunctionExpression', ()=> {
     const example = `fn = (@a = 123, b) => console.log a, b`;
     const expected =
 `var fn = (a = 123, b) => {
-  this.a = 123;
+  this.a = a;
   return console.log(a, b);
 };`;
     expect(compile(example)).toBe(expected);
   });
 
+  it('fn = (@a = 123, b) -> console.log a, b', ()=> {
+    const example = `fn = (@a = 123, b) -> console.log a, b`;
+    const expected =
+`var fn = function(a = 123, b) {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toBe(expected);
+  });
 });
 
 describe('ClassExpression', ()=> {
