@@ -545,8 +545,10 @@ describe('switch blocks', ()=> {
 `switch (word) {
 case "hello":
   say("hello");
+  break;
 case "bye":
   say("bye");
+  break;
 default:
   say("whatever");
 }`;
