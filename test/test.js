@@ -528,7 +528,7 @@ describe('comprehensions', ()=> {
 
   it('bam = (x for x in [0...10] by 2)', ()=> {
     const example = `bam = (x for x in [0...10] by 2)`;
-    const expected = 
+    const expected =
 `var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
   return _i === 0 || _i % (2 + 1) === 0;
 }).map(x => {
@@ -539,7 +539,7 @@ describe('comprehensions', ()=> {
 
   it('bam = (x for x in [0...10] by 4)', ()=> {
     const example = `bam = (x for x in [0...10] by 4)`;
-    const expected = 
+    const expected =
 `var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
   return _i === 0 || _i % (4 + 1) === 0;
 }).map(x => {
@@ -550,7 +550,7 @@ describe('comprehensions', ()=> {
 
   it('bam = (x for x in [0...10] by num())', ()=> {
     const example = `bam = (x for x in [0...10] by num())`;
-    const expected = 
+    const expected =
 `var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
   return _i === 0 || _i % (num() + 1) === 0;
 }).map(x => {
@@ -595,6 +595,47 @@ describe('splats', ()=> {
   it('fn = (b...)->', ()=> {
     const example = `fn = (b...) ->`;
     const expected = `var fn = function(...b) {};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('a = [b...]', ()=> {
+    const example = `a = [b...]`;
+    const expected = `var a = [...b];`;
+    expect(compile(example)).toBe(expected);
+  });
+});
+
+describe('argument splats', () =>{
+  it('fn = (first, ..., beforeLast, last) ->', ()=> {
+    const example = `fn = (first, ..., beforeLast, last) ->`;
+    const expected =
+`var fn = function() {
+  var first = arguments[0];
+  var last = arguments[arguments.length - 1];
+  var beforeLast = arguments[arguments.length - 2];
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it(`fn = (@first = 'sobo', ..., beforeLast, last = bom()) ->`, ()=> {
+    const example = `fn = (@first = 'sobo', ..., @beforeLast = 'boom', last = bom()) ->`;
+    const expected =
+`var fn = function() {
+  this.first = arguments[0];
+
+  if (arguments[0] === undefined)
+    this.first = "sobo";
+
+  var last = arguments[arguments.length - 1];
+
+  if (arguments[arguments.length - 1] === undefined)
+    last = bom();
+
+  this.beforeLast = arguments[arguments.length - 2];
+
+  if (arguments[arguments.length - 2] === undefined)
+    this.beforeLast = "boom";
+};`;
     expect(compile(example)).toBe(expected);
   });
 });

@@ -2,7 +2,9 @@ import {builders as b} from 'ast-types';
 import recast from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
-import _ from 'lodash';
+import findWhere from 'lodash/collection/findWhere';
+import findIndex from 'lodash/array/findIndex';
+import any from 'lodash/collection/any';
 
 // regexes taken from coffeescript parser
 export const IDENTIFIER = /^(?!\d)[$\w\x7f-\uffff]+$/;
@@ -196,7 +198,7 @@ export function mapClassBody(node, meta) {
     classElements = classElements.map( el => mapClassBodyElement(el, meta));
   }
 
-  let constructor = _.findWhere(classElements, {kind: 'constructor'});
+  let constructor = findWhere(classElements, {kind: 'constructor'});
 
   if (boundMethods.length > 0) {
     if (constructor === undefined) {
@@ -341,7 +343,7 @@ export function mapInArrayExpression(node, meta) {
   );
 }
 
-export function extractArgumentMemberAssignment(nodes, meta) {
+export function extractArgumentMemberAssignment(nodes) {
   return nodes
   .filter(node =>
           node.type === 'AssignmentExpression' &&
@@ -357,25 +359,158 @@ export function extractArgumentMemberAssignment(nodes, meta) {
   });
 }
 
-export function normalizeArguments(nodes, meta) {
+export function normalizeArguments(nodes) {
   return nodes.map((node) => {
-    if(node.type === 'AssignmentExpression' &&
+    if (node.type === 'AssignmentExpression' &&
        node.left.type === 'MemberExpression') {
       return b.assignmentExpression(
         node.operator,
         node.left.property,
         node.right
-      )
+      );
     }
     return node;
   });
 }
 
+// index can be an expression in this case
+export function mapArgumentWithExpansion(node, meta, arg) {
+  const expr = mapExpression(node.name, meta);
+  const statements = [];
+
+  if (node.name.base && node.name.base.value === 'this') {
+    statements.push(b.expressionStatement(b.assignmentExpression(
+      '=',
+      expr,
+      arg
+    )));
+  } else {
+    statements.push(b.variableDeclaration(
+      'var',
+      [b.variableDeclarator(
+        expr,
+        arg
+      )]
+    ));
+  }
+
+  if (node.value !== undefined && node.value !== null) {
+    statements.push(b.ifStatement(
+      b.binaryExpression(
+        '===',
+        arg,
+        b.identifier('undefined')
+      ),
+      b.expressionStatement(b.assignmentExpression(
+        '=',
+        expr,
+        mapExpression(node.value)
+      ))
+    ));
+  }
+  return statements;
+}
+
+export function mapArgumentsWithExpansion(nodes, meta) {
+  // In coffeescript you can have arguments that are
+  // positioned at the end like this: fn = (begin, middle..., end) ->
+  // The bit in the middle is of type Splat or Expansion. Expansion
+  // purely exists for defining such a 'last' Argument. There can be
+  // one or more last arguments. There can not be more than one
+  // argument of type Splat or Expansion however.
+  // Last arguments behave as normal
+
+  // Initiate statements variable, we'll fill this up.
+  const statements = [];
+
+  // find expansion index
+  const expansionIndex = findIndex(nodes, ({constructor}) => constructor.name === 'Expansion');
+
+  // separate head[] from tail[], omit the index.
+  const head = nodes.slice(0, expansionIndex);
+  const tail = nodes.slice(expansionIndex + 1, nodes.length);
+
+  // loop over head and tail and create assignment expression
+  // statements
+
+  // build head[] statements
+  head.forEach((node, index)=>{
+    const argument = b.memberExpression(
+      b.identifier('arguments'),
+      b.literal(index),
+      true
+    );
+    statements
+      .push
+      .apply(
+        statements,
+        mapArgumentWithExpansion(
+          node,
+          meta,
+          argument));
+  });
+
+  // build tail[] statements
+  tail.reverse().forEach((node, index) => {
+    const argument =
+      b.memberExpression(
+        b.identifier('arguments'),
+        b.binaryExpression(
+          '-',
+          b.memberExpression(
+            b.identifier('arguments'),
+            b.identifier('length')
+          ),
+          b.literal(index + 1)
+        ),
+        true
+      );
+
+    statements
+      .push
+      .apply(
+        statements,
+        mapArgumentWithExpansion(
+          node,
+          meta,
+          argument));
+  });
+
+  return statements;
+}
+
 export function mapFunction(node, meta) {
-  let args = mapArguments(node.params, meta);
+  let args = [];
+
+  // setupStatements will be appended at the top of the function
+  // block. It's used to add behaviour that would be impossible to
+  // map 1 to 1 from coffeescript
+  let setupStatements = [];
+
+  // Expansions are coffee-script-only behaviour. We'll need to do
+  // some plumbing to map Expansions to JavaScript, also we don't
+  // want to rely on the coffeescript parser for this as the output
+  // is quite weird/ugly
+  const hasExpansion = any(node.params, param => param.constructor.name === 'Expansion');
+
+  if (hasExpansion === false) {
+    args = mapArguments(node.params, meta);
+  }
+
+  if (hasExpansion === true) {
+    setupStatements = setupStatements.concat(setupStatements, mapArgumentsWithExpansion(node.params, meta));
+  }
+
+  // In coffeescript you can immediately assign an argument to a
+  // member of `this`. Which looks like this: fn = (@a = 'A') ->
+  // For our compilation we translate it like
+  // fn = function(a = 'A') { this.a = a; } as there is no 1 to 1
+  // solution here
+  setupStatements = setupStatements.concat(extractArgumentMemberAssignment(args, meta));
+
   const block = mapBlockStatement(node.body, meta);
-  const memberAssignments = extractArgumentMemberAssignment(args, meta);
-  block.body = memberAssignments.concat(block.body);
+
+  block.body = setupStatements.concat(block.body);
   args = normalizeArguments(args, meta);
 
   if (node.bound === true) {
@@ -429,7 +564,7 @@ export function mapForStatement(node, meta) {
 }
 
 function mapLeftHandForExpression(node, meta) {
-  if(node.step !== undefined) {
+  if (node.step !== undefined) {
     return b.memberExpression(
       mapExpression(node.source, meta),
       b.callExpression(
@@ -459,17 +594,17 @@ function mapLeftHandForExpression(node, meta) {
               )],
               recast.parse('return _i === 0 || _i % (2 + 1) == 0;').program.body
             )
-          )
+          ),
         ]
       )
-    )
+    );
   }
 
   return mapExpression(node.source, meta);
 }
 
 export function mapForExpression(node, meta) {
-  let leftHand = mapLeftHandForExpression(node, meta);
+  const leftHand = mapLeftHandForExpression(node, meta);
   return b.memberExpression(
     leftHand,
     b.callExpression(
@@ -541,12 +676,12 @@ export function mapExpression(node, meta) {
   throw new Error(`can't convert node of type: ${type} to Expression - not recognized`);
 }
 
-export function mapParamToAssignment(node, meta){
+export function mapParamToAssignment(node) {
   const assignment = {
     variable: node.name,
-    value: node.value
+    value: node.value,
   };
-  assignment.constructor = {name: 'Assign'}
+  assignment.constructor = {name: 'Assign'};
   return assignment;
 }
 
