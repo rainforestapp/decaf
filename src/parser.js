@@ -484,11 +484,21 @@ export function mapForExpression(node, meta) {
   );
 }
 
+export function mapSplatParam(node, meta) {
+  return b.restElement(mapExpression(node, meta));
+}
+
 export function mapParam(node, meta) {
-  if(node.value !== undefined) {
-    return mapExpression(mapParamToAssignment(node))
+  if (node.value !== undefined && node.value !== null) {
+    return mapExpression(mapParamToAssignment(node));
+  } else if (node.splat === true) {
+    return mapSplatParam(node.name, meta);
   }
   return mapExpression(node.name);
+}
+
+export function mapSplat(node, meta) {
+  return b.spreadElement(mapExpression(node.name, meta));
 }
 
 export function mapExpression(node, meta) {
@@ -496,6 +506,8 @@ export function mapExpression(node, meta) {
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties]);
+  } else if (type === 'Splat') {
+    return mapSplat(node, meta);
   } else if (type === 'Assign') {
     return mapAssignmentExpression(node, meta);
   } else if (type === 'Slice') {

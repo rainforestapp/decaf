@@ -87,6 +87,14 @@ describe('Boolean Expression', ()=> {
   });
 });
 
+describe('embedded javascript', ()=> {
+  it('`var b = function(){ console.log(\'dwq\'); }`', ()=> {
+    const example = '`var b = function(){ console.log(\'dwq\'); }`';
+    const expected = 'var b = function(){ console.log(\'dwq\'); };';
+    expect(compile(example)).toBe(expected);
+  });
+});
+
 describe('AssigmentExpression', ()=>{
   it('assigns strings', ()=> {
     expect(compile('bam = "hello"')).toBe('var bam = "hello";');
@@ -578,8 +586,16 @@ describe('ranges', ()=> {
 });
 
 describe('splats', ()=> {
-  it('should convert coffeescript splats', ()=> {
-    const example = `...b`
+  it('a = c(b...)', ()=> {
+    const example = `a = c(b...)`;
+    const expected = `var a = c(...b);`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('fn = (b...)->', ()=> {
+    const example = `fn = (b...) ->`;
+    const expected = `var fn = function(...b) {};`;
+    expect(compile(example)).toBe(expected);
   });
 });
 
@@ -601,4 +617,8 @@ describe('slices', ()=> {
     const expected = `bam.splice(a["dwq"].bom, 100);`;
     expect(compile(example)).toBe(expected);
   });
+});
+
+describe('file compilation', ()=> {
+
 });
