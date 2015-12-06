@@ -157,7 +157,7 @@ export function mapCall(node, meta) {
 
   if (node.isSuper === true && methodName === 'constructor') {
     left = b.identifier('super');
-  } else if(node.isSuper === true){
+  } else if (node.isSuper === true) {
     left = b.memberExpression(
       b.identifier('super'),
       b.identifier(methodName)
@@ -190,8 +190,8 @@ export function mapClassBodyElement(node, meta) {
   }
 
   const _meta = Object.assign(
-    {}, 
-    meta, 
+    {},
+    meta,
     {methodName});
 
   return b.methodDefinition(
