@@ -411,6 +411,30 @@ export function mapArgumentWithExpansion(node, meta, arg) {
   return statements;
 }
 
+export function mapSplatArgument(headLength, tailCount) {
+  return b.memberExpression(
+    b.identifier('arguments'),
+    b.callExpression(
+      b.identifier('slice'),
+      [
+        b.literal(headLength),
+        b.memberExpression(
+          b.identifier('arguments'),
+          b.binaryExpression(
+            '-',
+            b.memberExpression(
+              b.identifier('arguments'),
+              b.identifier('length')
+            ),
+            b.literal(tailCount)
+          ),
+          true
+        ),
+      ]
+    )
+  );
+}
+
 export function mapArgumentsWithExpansion(nodes, meta) {
   // In coffeescript you can have arguments that are
   // positioned at the end like this: fn = (begin, middle..., end) ->
@@ -424,22 +448,35 @@ export function mapArgumentsWithExpansion(nodes, meta) {
   const statements = [];
 
   // find expansion index
-  const expansionIndex = findIndex(nodes, ({constructor}) => constructor.name === 'Expansion');
+  const expansionIndex = findIndex(nodes, (node) => node.constructor.name === 'Expansion' || node.splat === true);
+  const isSplat = any(nodes, (node) => node.splat === true);
 
   // separate head[] from tail[], omit the index.
   const head = nodes.slice(0, expansionIndex);
   const tail = nodes.slice(expansionIndex + 1, nodes.length);
+
+  if (isSplat === true) {
+    // if the expansion is a splat we'll add it to head
+    // so it gets processed
+    head.push(nodes[expansionIndex]);
+  }
 
   // loop over head and tail and create assignment expression
   // statements
 
   // build head[] statements
   head.forEach((node, index)=>{
-    const argument = b.memberExpression(
-      b.identifier('arguments'),
-      b.literal(index),
-      true
-    );
+    let argument;
+    if (node.splat === true) {
+      argument = mapSplatArgument(head.length, tail.length);
+    } else {
+      argument = b.memberExpression(
+        b.identifier('arguments'),
+        b.literal(index),
+        true
+      );
+    }
+
     statements
       .push
       .apply(
@@ -447,7 +484,8 @@ export function mapArgumentsWithExpansion(nodes, meta) {
         mapArgumentWithExpansion(
           node,
           meta,
-          argument));
+          argument
+        ));
   });
 
   // build tail[] statements
@@ -473,7 +511,8 @@ export function mapArgumentsWithExpansion(nodes, meta) {
         mapArgumentWithExpansion(
           node,
           meta,
-          argument));
+          argument
+        ));
   });
 
   return statements;
@@ -491,7 +530,16 @@ export function mapFunction(node, meta) {
   // some plumbing to map Expansions to JavaScript, also we don't
   // want to rely on the coffeescript parser for this as the output
   // is quite weird/ugly
-  const hasExpansion = any(node.params, param => param.constructor.name === 'Expansion');
+  const hasExpansion = any(node.params, (param, index) => {
+    // if the last argument isn't a splat or expansion we needn't worry
+    // To spell it out the logic here is:
+    // If this isn't the last argument, and
+    // the argument is either an expansion or a splat
+    // then we return true
+    return (index < (node.params.length - 1) &&
+            (param.constructor.name === 'Expansion' ||
+             param.splat === true ));
+  });
 
   if (hasExpansion === false) {
     args = mapArguments(node.params, meta);

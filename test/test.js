@@ -638,6 +638,28 @@ describe('argument splats', () =>{
 };`;
     expect(compile(example)).toBe(expected);
   });
+
+  it('fn = (first, rest..., last) ->', ()=> {
+    const example = `fn = (first, rest..., last) ->`;
+    const expected =
+`var fn = function() {
+  var first = arguments[0];
+  var rest = arguments.slice(2, arguments[arguments.length - 1]);
+  var last = arguments[arguments.length - 1];
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('fn = (first, @rest..., last) ->', ()=> {
+    const example = `fn = (first, @rest..., last) ->`;
+    const expected =
+`var fn = function() {
+  var first = arguments[0];
+  this.rest = arguments.slice(2, arguments[arguments.length - 1]);
+  var last = arguments[arguments.length - 1];
+};`;
+    expect(compile(example)).toBe(expected);
+  });
 });
 
 describe('slices', ()=> {
