@@ -1,5 +1,6 @@
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
+import recast from 'recast';
 
 function compile(source) {
   return _compile(source, {tabWidth: 2}).code;
@@ -88,9 +89,9 @@ describe('Boolean Expression', ()=> {
 });
 
 describe('embedded javascript', ()=> {
-  it('`var b = function(){ console.log(\'dwq\'); }`', ()=> {
-    const example = '`var b = function(){ console.log(\'dwq\'); }`';
-    const expected = 'var b = function(){ console.log(\'dwq\'); };';
+  it('`var b = function(){ console.log(\'foobar\'); }`', ()=> {
+    const example = '`var b = function(){ console.log(\'foobar\'); }`';
+    const expected = 'var b = function(){ console.log(\'foobar\'); };';
     expect(compile(example)).toBe(expected);
   });
 });
@@ -405,7 +406,7 @@ if explosion is true
 `;
     const expected =
 `if (explosion === true) {
-  return alert("BOOM");
+  alert("BOOM");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -420,7 +421,7 @@ if explosion is true
     const expected =
 `if (explosion === true) {
   if (fake !== false) {
-    return alert("BOOM");
+    alert("BOOM");
   }
 }`;
     expect(compile(example)).toBe(expected);
@@ -434,7 +435,7 @@ if explosion is true and boom is false and other
 `;
     const expected =
 `if (explosion === true && boom === false && other) {
-  return alert("BOOM");
+  alert("BOOM");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -453,13 +454,13 @@ else
 `;
     const expected =
 `if (explosion === true) {
-  return alert("BOOM");
+  alert("BOOM");
 } else if (explosion === false) {
-  return alert("NO BOOM 1");
+  alert("NO BOOM 1");
 } else if (explosion === false) {
-  return alert("NO BOOM 2");
+  alert("NO BOOM 2");
 } else {
-  return alert("NOTHING");
+  alert("NOTHING");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -470,7 +471,7 @@ else
   alert 'BOOM'`;
     const expected =
 `if (explosion !== false) {
-  return alert("BOOM");
+  alert("BOOM");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -480,7 +481,7 @@ else
 `console.log 'boom' if condition is true`;
     const expected =
 `if (condition === true) {
-  return console.log("boom");
+  console.log("boom");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -490,7 +491,7 @@ else
 `console.log 'boom' if condition is true and bam isnt false`;
     const expected =
 `if (condition === true && bam !== false) {
-  return console.log("boom");
+  console.log("boom");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -506,9 +507,9 @@ catch err
 `;
     const expected =
 `try {
-  return boom();
+  boom();
 } catch (err) {
-  return console.log("error");
+  console.log("error");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -524,11 +525,11 @@ finally
 `;
     const expected =
 `try {
-  return boom();
+  boom();
 } catch (err) {
-  return console.log("error");
+  console.log("error");
 } finally {
-  return say("finally");
+  say("finally");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -556,6 +557,29 @@ default:
   });
 });
 
+describe('switch expressions', ()=> {
+  it('should print a simple switch statement', ()=> {
+    const example =
+`thing = switch word
+  when 'hello' then say 'hello'
+  when 'bye' then say 'bye'
+  else say 'whatever'`;
+    const expected =
+`var thing = (() => {
+  switch (word) {
+  case "hello":
+    say("hello");
+  case "bye":
+    say("bye");
+  default:
+    say("whatever");
+  }
+})();`;
+    expect(compile(example)).toBe(expected);
+  });
+
+});
+
 describe('comprehensions', ()=> {
   it('simple for loop', ()=> {
     const example =
@@ -563,7 +587,7 @@ describe('comprehensions', ()=> {
   eat food`;
     const expected =
 `for (let food in ["toast", "cheese", "wine"]) {
-  return eat(food);
+  eat(food);
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -574,7 +598,7 @@ describe('comprehensions', ()=> {
   eat food`;
     const expected =
 `var res = ["toast", "cheese", "wine"].map(food => {
-  return eat(food);
+  eat(food);
 });`;
     expect(compile(example)).toBe(expected);
   });
@@ -728,9 +752,9 @@ describe('slices', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it(`bam[a['dwq'].bom...100]`, ()=> {
-    const example = `bam[a['dwq'].bom...100]`;
-    const expected = `bam.splice(a["dwq"].bom, 100);`;
+  it(`bam[a['foobar'].bom...100]`, ()=> {
+    const example = `bam[a['foobar'].bom...100]`;
+    const expected = `bam.splice(a["foobar"].bom, 100);`;
     expect(compile(example)).toBe(expected);
   });
 });

@@ -356,9 +356,6 @@ export function mapStatement(node, meta) {
 export function mapBlockStatement(node, meta) {
   const lastIndex = node.expressions.length - 1;
   return b.blockStatement(node.expressions.map((expr, index) => {
-    if (index === lastIndex && isExpression(expr)) {
-      return b.returnStatement(mapExpression(expr, meta));
-    }
     return mapStatement(expr, meta);
   }));
 }
@@ -549,6 +546,11 @@ export function mapArgumentsWithExpansion(nodes, meta) {
 }
 
 export function mapFunction(node, meta) {
+  // Function {
+  //   params: [],
+  //   body: [statements],
+  //   bound: Boolean
+  // }
   let args = [];
 
   // setupStatements will be appended at the top of the function
@@ -722,11 +724,26 @@ export function mapSplat(node, meta) {
   return b.spreadElement(mapExpression(node.name, meta));
 }
 
+export function mapSwitchExpression(node, meta) {
+  return b.callExpression(
+    mapFunction({
+      bound: true,
+      params: [],
+      body: {
+        expressions: [node],
+      },
+    }, meta),
+    []
+  );
+}
+
 export function mapExpression(node, meta) {
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties], meta);
+  } else if (type === 'Switch') {
+    return mapSwitchExpression(node, meta);
   } else if (type === 'Splat') {
     return mapSplat(node, meta);
   } else if (type === 'Assign') {
