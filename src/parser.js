@@ -605,9 +605,17 @@ export function mapSwitchCase(node, meta) {
   if (test !== null) {
     test = mapExpression(test, meta);
   }
+  const caseBlock = block.expressions.map((expr) => mapStatement(expr, meta));
+
+  // test is null if this switchcase is of type 'default'
+  // in which case we won't add a breakstatement
+  if(test !== null) {
+    caseBlock.push(b.breakStatement());
+  }
+
   return b.switchCase(
     test,
-    block.expressions.map((expr) => mapStatement(expr, meta))
+    caseBlock
   );
 }
 
