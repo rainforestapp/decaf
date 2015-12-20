@@ -4,7 +4,9 @@ import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import findWhere from 'lodash/collection/findWhere';
 import findIndex from 'lodash/array/findIndex';
+import compose from 'lodash/function/compose';
 import any from 'lodash/collection/any';
+// import jscodeshift from 'jscodeshift';
 
 // regexes taken from coffeescript parser
 export const IDENTIFIER = /^(?!\d)[$\w\x7f-\uffff]+$/;
@@ -153,9 +155,13 @@ export function mapArguments(args, meta) {
 
 export function mapCall(node, meta) {
   let left;
-  const {methodName} = meta;
+  const methodName = meta.methodName;
 
-  if (node.isSuper === true && methodName === 'constructor') {
+  if (node.soak === true) {
+    return recast
+      .parse(node.compile(meta))
+      .program.body[0].expression;
+  } else if (node.isSuper === true && methodName === 'constructor') {
     left = b.identifier('super');
   } else if (node.isSuper === true) {
     left = b.memberExpression(
@@ -343,7 +349,7 @@ export function mapStatement(node, meta) {
   } else if (type === 'Class') {
     return mapClassDeclaration(node, meta);
   } else if (type === 'Switch') {
-    return mapSwitchStatement(node, meta);
+    return addBreakStatementsToSwitch(mapSwitchStatement(node, meta));
   } else if (type === 'If') {
     return mapIfStatement(node, meta);
   } else if (type === 'Try') {
@@ -354,8 +360,7 @@ export function mapStatement(node, meta) {
 }
 
 export function mapBlockStatement(node, meta) {
-  const lastIndex = node.expressions.length - 1;
-  return b.blockStatement(node.expressions.map((expr, index) => {
+  return b.blockStatement(node.expressions.map((expr) => {
     return mapStatement(expr, meta);
   }));
 }
@@ -545,6 +550,26 @@ export function mapArgumentsWithExpansion(nodes, meta) {
   return statements;
 }
 
+export function lastReturnStatement(nodeList = []) {
+  if (nodeList.length > 0) {
+    const lastNode = nodeList[nodeList.length - 1];
+    nodeList[nodeList.length - 1] = b.returnStatement(lastNode.expression);
+  }
+  return nodeList;
+}
+
+export function lastBreakStatement(nodeList = []) {
+  if (nodeList.length > 0) {
+    nodeList.push(b.breakStatement());
+  }
+  return nodeList;
+}
+
+export function addReturnStatementToBlock(node) {
+  node.body = lastReturnStatement(node.body);
+  return node;
+}
+
 export function mapFunction(node, meta) {
   // Function {
   //   params: [],
@@ -584,11 +609,11 @@ export function mapFunction(node, meta) {
   // In coffeescript you can immediately assign an argument to a
   // member of `this`. Which looks like this: fn = (@a = 'A') ->
   // For our compilation we translate it like
-  // fn = function(a = 'A') { this.a = a; } as there is no 1 to 1
+  // fn = function() { this.a = arguments[0]; } as there is no 1 to 1
   // solution here
   setupStatements = setupStatements.concat(extractArgumentMemberAssignment(args, meta));
 
-  const block = mapBlockStatement(node.body, meta);
+  const block = addReturnStatementToBlock(mapBlockStatement(node.body, meta), meta);
 
   block.body = setupStatements.concat(block.body);
   args = normalizeArguments(args, meta);
@@ -600,6 +625,26 @@ export function mapFunction(node, meta) {
   return b.functionExpression(null, args, block);
 }
 
+export function insertReturnStatements(ast) {
+  // console.log(jscodeshift(ast).findIdentifiers().logNames());
+  // So basically what we want to do is convert every
+  // last statement in a function body into a return
+  // statement
+  //  const res = recast.visit(ast, {
+  //    visitNode: function(path) {
+  //      if(path.value.type === 'ArrowFunctionExpression' ||
+  //         path.value.type === 'FunctionExpression'){
+  //        this.traverse(path);
+  //      }else {
+  //        return false;
+  //      }
+  //    },
+  //    visitBlockStatement: function(path) {
+  //    }
+  //  });
+
+  return ast;
+}
 
 export function mapSwitchCase(node, meta) {
   let [test] = node;
@@ -608,12 +653,6 @@ export function mapSwitchCase(node, meta) {
     test = mapExpression(test, meta);
   }
   const caseBlock = block.expressions.map((expr) => mapStatement(expr, meta));
-
-  // test is null if this switchcase is of type 'default'
-  // in which case we won't add a breakstatement
-  if(test !== null) {
-    caseBlock.push(b.breakStatement());
-  }
 
   return b.switchCase(
     test,
@@ -700,7 +739,7 @@ export function mapForExpression(node, meta) {
       [
         b.arrowFunctionExpression(
           [mapExpression(node.name, meta)],
-          mapBlockStatement(node.body, meta)
+          addReturnStatementToBlock(mapBlockStatement(node.body, meta))
         ),
       ]
     )
@@ -724,17 +763,46 @@ export function mapSplat(node, meta) {
   return b.spreadElement(mapExpression(node.name, meta));
 }
 
+export function addReturnStatementsToSwitch(node) {
+  node.cases = node.cases.map((switchCase)=> {
+    switchCase.consequent = lastReturnStatement(switchCase.consequent);
+    return switchCase;
+  });
+  return node;
+}
+
+export function addBreakStatementsToSwitch(node) {
+  node.cases = node.cases.map((switchCase)=> {
+    if (switchCase.test !== null) {
+      switchCase.consequent = lastBreakStatement(switchCase.consequent);
+    }
+    return switchCase;
+  });
+  return node;
+}
+
 export function mapSwitchExpression(node, meta) {
   return b.callExpression(
-    mapFunction({
-      bound: true,
-      params: [],
-      body: {
-        expressions: [node],
-      },
-    }, meta),
+    b.arrowFunctionExpression(
+      [],
+      b.blockStatement([addReturnStatementsToSwitch(
+        mapSwitchStatement(node, meta)
+      )])
+    ),
     []
   );
+}
+
+export function mapExistentialExpression(node, meta) {
+  return recast
+    .parse(node.compile(meta))
+    .program.body[0].expression;
+}
+
+export function mapNewExpression(node, meta) {
+  const constructor = node.first || node.variable;
+  const args = node.args ? mapArguments(node.args, meta) : [];
+  return b.newExpression(mapExpression(constructor), args);
 }
 
 export function mapExpression(node, meta) {
@@ -742,6 +810,12 @@ export function mapExpression(node, meta) {
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties], meta);
+  } else if (type === 'Call' && node.isNew === true) {
+    return mapNewExpression(node, meta);
+  } else if (type === 'Op' && node.operator === 'new') {
+    return mapNewExpression(node, meta);
+  } else if (type === 'Existence') {
+    return mapExistentialExpression(node, meta);
   } else if (type === 'Switch') {
     return mapSwitchExpression(node, meta);
   } else if (type === 'Splat') {
@@ -878,6 +952,12 @@ export function parse(coffeeSource) {
   return program;
 }
 
+
 export function compile(coffeeSource, opts) {
-  return recast.prettyPrint(parse(coffeeSource), opts);
+  const _compile = compose(
+    (code) => recast.prettyPrint(code, opts),
+    insertReturnStatements,
+    parse);
+
+  return _compile(coffeeSource, opts);
 }

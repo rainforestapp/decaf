@@ -1,6 +1,6 @@
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
-import recast from 'recast';
+// import recast from 'recast';
 
 function compile(source) {
   return _compile(source, {tabWidth: 2}).code;
@@ -30,6 +30,10 @@ describe('Values', ()=> {
   it('booleans', ()=> {
     expect(compile('true')).toBe('true;');
     expect(compile('false')).toBe('false;');
+    expect(compile('yes')).toBe('true;');
+    expect(compile('!!yes')).toBe('!!true;');
+    expect(compile('!!!yes')).toBe('!!!true;');
+    expect(compile('no')).toBe('false;');
   });
 
   it('arrays', ()=> {
@@ -39,6 +43,51 @@ describe('Values', ()=> {
   it('objects', ()=> {
     expect(compile('a: 213, b: "321"')).toBe('({\n  a: 213,\n  b: "321"\n});');
     expect(compile('false')).toBe('false;');
+  });
+});
+
+describe('new Expressions', ()=> {
+  it('new FooBar', ()=> {
+    expect(compile('new FooBar')).toBe('new FooBar();');
+  });
+
+  it(`new FooBar('bobo')`, ()=> {
+    expect(compile(`new FooBar('bobo')`)).toBe(`new FooBar("bobo");`);
+  });
+
+
+  it('bom = new FooBar', ()=> {
+    expect(compile('bom = new FooBar')).toBe('var bom = new FooBar();');
+  });
+
+  it('bom = new FooBar(1,2,boom())', ()=> {
+    expect(compile('bom = new FooBar(1,2,boom())')).toBe('var bom = new FooBar(1, 2, boom());');
+  });
+});
+
+describe('Existential Operator', ()=> {
+  it('foo?', ()=> {
+    const example = 'foo?';
+    const expected = 'typeof foo !== "undefined" && foo !== null;';
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('foo?.bar?', ()=> {
+    const example = 'foo?.bar?';
+    const expected = '((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;';
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('yo = foo?.bar?', ()=> {
+    const example = 'yo = foo?.bar?';
+    const expected = 'var yo = ((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;';
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('yo = foo?.bar?()', ()=> {
+    const example = 'yo = a?.b?.c?()';
+    const expected = 'var yo = (typeof a !== "undefined" && a !== null ? ((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0);';
+    expect(compile(example)).toBe(expected);
   });
 });
 
@@ -558,26 +607,28 @@ default:
 });
 
 describe('switch expressions', ()=> {
-  it('should print a simple switch statement', ()=> {
+  it('should print a simple switch statement with return statements', ()=> {
     const example =
 `thing = switch word
-  when 'hello' then say 'hello'
+  when 'hello'
+      fray 'boom'
+      say 'hello'
   when 'bye' then say 'bye'
   else say 'whatever'`;
     const expected =
 `var thing = (() => {
   switch (word) {
   case "hello":
-    say("hello");
+    fray("boom");
+    return say("hello");
   case "bye":
-    say("bye");
+    return say("bye");
   default:
-    say("whatever");
+    return say("whatever");
   }
 })();`;
     expect(compile(example)).toBe(expected);
   });
-
 });
 
 describe('comprehensions', ()=> {
@@ -598,7 +649,7 @@ describe('comprehensions', ()=> {
   eat food`;
     const expected =
 `var res = ["toast", "cheese", "wine"].map(food => {
-  eat(food);
+  return eat(food);
 });`;
     expect(compile(example)).toBe(expected);
   });

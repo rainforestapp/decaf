@@ -18,6 +18,7 @@
     "coffee-script": "1.10.0",
     "consolehighlighter": "0.1.5",
     "expect": "1.13.0",
+    "jscodeshift": "0.3.10",
     "lodash": "3.10.1",
     "mocha": "2.3.4",
     "recast": "juliankrispel/recast#implements-keyword",
