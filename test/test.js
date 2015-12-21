@@ -831,7 +831,7 @@ describe('conditional expressions', ()=> {
   if (bar === true) {
     return 12345;
   } else if (hello === "world") {
-    return 54321;
+    return "boom";
   }
 })();`;
     expect(compile(example)).toBe(expected);
