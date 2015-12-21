@@ -866,8 +866,8 @@ describe('conditional expressions', ()=> {
   });
 });
 
-describe('file compilation', ()=> {
-  it('nested return statements', ()=> {
+describe('return statements', ()=> {
+  it('switch expression', ()=> {
     const example =
 `a = switch a
   when 'b' then 'c'
@@ -880,6 +880,53 @@ describe('file compilation', ()=> {
     return "c";
   case "c":
     return (c === "d" ? c = b : undefined);
+  }
+})();`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('switch expression inside conditional', ()=> {
+    const example =
+`a =
+  unless b is true
+    switch a
+      when 'b' then 'c'
+      when 'c'
+        c = b if c is 'd'`;
+    const expected =
+`var a = (b !== true ? (() => {
+  switch (a) {
+  case "b":
+    return "c";
+  case "c":
+    return (c === "d" ? c = b : undefined);
+  }
+})() : undefined);`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('switch statement inside conditional (not last statement)', ()=> {
+    const example =
+`a =
+  unless b is true
+    switch a
+      when 'b' then 'c'
+      when 'c'
+        c = b if c is 'd'
+    123`;
+    const expected =
+`var a = (() => {
+  if (b !== true) {
+    switch (a) {
+    case "b":
+      "c";
+      break;
+    case "c":
+      (c === "d" ? c = b : undefined);
+      break;
+    }
+
+    return 123;
   }
 })();`;
     expect(compile(example)).toBe(expected);
