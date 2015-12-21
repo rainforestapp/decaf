@@ -454,11 +454,27 @@ if explosion is true
   alert 'BOOM'
 `;
     const expected =
+`(explosion === true ? alert("BOOM") : undefined);`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('maps simple if else statement', ()=> {
+    const example =
+`
+if explosion is true
+  alert 'BOOM'
+else
+  if bom
+    alert 'BAM'`;
+    const expected =
 `if (explosion === true) {
   alert("BOOM");
+} else {
+  (bom ? alert("BAM") : undefined);
 }`;
     expect(compile(example)).toBe(expected);
   });
+
 
   it('maps nested if statements ', ()=> {
     const example =
@@ -478,13 +494,14 @@ if explosion is true
 
   it('maps if statements with multiple conditions ', ()=> {
     const example =
-`
-if explosion is true and boom is false and other
+`if explosion is true and boom is false and other
   alert 'BOOM'
 `;
     const expected =
-`if (explosion === true && boom === false && other) {
-  alert("BOOM");
+`if (explosion === true) {
+  if (fake !== false) {
+    alert("BOOM");
+  }
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -585,7 +602,7 @@ finally
 });
 
 describe('switch blocks', ()=> {
-  it('should print a simple switch statement', ()=> {
+  it('prints a simple switch statement', ()=> {
     const example =
 `switch word
   when 'hello' then say 'hello'
@@ -607,7 +624,7 @@ default:
 });
 
 describe('switch expressions', ()=> {
-  it('should print a simple switch statement with return statements', ()=> {
+  it('prints a simple switch statement with return statements', ()=> {
     const example =
 `thing = switch word
   when 'hello'
@@ -843,10 +860,29 @@ describe('conditional expressions', ()=> {
 `var foo = (() => {
   if (bar === true) {
     return 12345;
-  } else if (hello === "world") {
-    return "boom";
   } else {
-    return "bam";
+    return (hello === "world" ? "boom" : "bam");
+  }
+})();`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it(`nested if expressions`, ()=> {
+    const example = 
+`b = 
+  if a is 'loo'
+    'boom'
+  else
+    if boom() is 2
+      abc = 'dwq' + 123
+      abc`;
+    const expected =
+`var b = (() => {
+  if (a === "loo") {
+    return "boom";
+  } else if (boom() === 2) {
+    var abc = "dwq" + 123;
+    return abc;
   }
 })();`;
     expect(compile(example)).toBe(expected);
@@ -854,5 +890,21 @@ describe('conditional expressions', ()=> {
 });
 
 describe('file compilation', ()=> {
-
+  it('nested return statements', ()=> {
+    const example =
+`a = switch a
+  when 'b' then 'c'
+  when 'c'
+    c = b if c is 'd'`;
+    const expected =
+`var a = (() => {
+  switch (a) {
+  case "b":
+    return "c";
+  case "c":
+    return (c === "d" ? c = b : undefined);
+  }
+})();`;
+    expect(compile(example)).toBe(expected);
+  });
 });

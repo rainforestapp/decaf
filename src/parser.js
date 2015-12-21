@@ -1,4 +1,4 @@
-import {builders as b} from 'ast-types';
+import {builders as b, namedTypes as n} from 'ast-types';
 import recast from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
@@ -302,12 +302,43 @@ export function mapElseBlock(node, meta) {
   const type = node.constructor.name;
 
   if (type === 'If') {
-    return mapIfStatement(node, meta);
+    const conditional = mapConditionalStatement(node, meta);
+    if (n.IfStatement.check(conditional)) {
+      return conditional;
+    } else {
+      return b.blockStatement([conditional]);
+    }
   } else if (type === 'Block') {
     return mapBlockStatement(node, meta);
   }
 
   return mapBlockStatement({expressions: [node]}, meta);
+}
+
+export function mapElseExpression(node, meta) {
+  const type = node.constructor.name;
+
+  if (type === 'If') {
+    return mapConditionalExpression(node, meta);
+  } else if (type === 'Block') {
+    return mapExpression(node.expressions[0], meta);
+  }
+
+  return mapExpression(node, meta);
+}
+
+export function mapConditionalExpression(node, meta) {
+  let alternate = b.identifier('undefined');
+
+  if (node.elseBody) {
+    alternate = mapElseExpression(node.elseBody.expressions[0], meta);
+  }
+
+  return b.conditionalExpression(
+    mapExpression(node.condition, meta),
+    mapExpression(node.body.expressions[0], meta),
+    alternate
+  );
 }
 
 export function mapIfStatement(node, meta) {
@@ -320,6 +351,22 @@ export function mapIfStatement(node, meta) {
     mapBlockStatement(node.body, meta),
     alternate
   );
+}
+
+export function mapConditionalStatement(node, meta) {
+  // If the conditional has more than one test
+  // or more than one expression in either block we
+  // create an if statement otherwise we use a conditional
+  // expression (this is all just for readability)
+  if (
+    node.elseBody && node.elseBody.expressions.length > 1 ||
+    node.body && node.body.expressions.length > 1 ||
+    node.elseBody && node.elseBody.expressions[0].constructor.name === 'If'
+  ) {
+    return mapIfStatement(node, meta);
+  }
+
+  return b.expressionStatement(mapConditionalExpression(node, meta));
 }
 
 export function mapTryCatchBlock(node, meta) {
@@ -351,7 +398,7 @@ export function mapStatement(node, meta) {
   } else if (type === 'Switch') {
     return addBreakStatementsToSwitch(mapSwitchStatement(node, meta));
   } else if (type === 'If') {
-    return mapIfStatement(node, meta);
+    return mapConditionalStatement(node, meta);
   } else if (type === 'Try') {
     return mapTryCatchBlock(node, meta);
   }
@@ -550,10 +597,36 @@ export function mapArgumentsWithExpansion(nodes, meta) {
   return statements;
 }
 
+
+export function transformToExpression(_node) {
+  let node = _node;
+
+  if (node.expression !== undefined) {
+    return node.expression;
+  }
+
+  if (node.type === 'IfStatement') {
+    node = addReturnStatementToIfBlocks(node);
+  } else if (node.tpye === 'SwitchStatement') {
+    node = node;
+  }
+
+  return b.callExpression(
+    b.arrowFunctionExpression(
+      [],
+      b.blockStatement([
+        node
+      ])
+    ),
+    []
+  );
+}
+
 export function lastReturnStatement(nodeList = []) {
   if (nodeList.length > 0) {
-    const lastNode = nodeList[nodeList.length - 1];
-    nodeList[nodeList.length - 1] = b.returnStatement(lastNode.expression);
+    nodeList[nodeList.length - 1] =
+      b.returnStatement(
+        transformToExpression(nodeList[nodeList.length - 1]));
   }
   return nodeList;
 }
@@ -567,8 +640,10 @@ export function lastBreakStatement(nodeList = []) {
 
 export function addReturnStatementToIfBlocks(node) {
   node.consequent = addReturnStatementToBlock(node.consequent);
-  if (node.alternate && node.alternate.type === 'IfStatement') {
+  if (n.IfStatement.check(node.alternate)) {
     node.alternate = addReturnStatementToIfBlocks(node.alternate);
+  } else if (n.ExpressionStatement.check(node.alternate)) {
+    node.alternate = b.returnStatement(node.alternate.expression);
   } else if (node.alternate) {
     node.alternate = addReturnStatementToBlock(node.alternate);
   }
@@ -815,16 +890,22 @@ export function mapNewExpression(node, meta) {
   return b.newExpression(mapExpression(constructor), args);
 }
 
-export function mapConditionalExpression(node, meta) {
-  return b.callExpression(
-    b.arrowFunctionExpression(
-      [],
-      b.blockStatement(
-        [addReturnStatementToIfBlocks(mapIfStatement(node, meta))]
-      )
-    ),
-    []
-  );
+export function conditionalStatementAsExpression(node, meta) {
+  const conditionalStatement = mapConditionalStatement(node, meta);
+
+  if (conditionalStatement.type === 'IfStatement') {
+    return b.callExpression(
+      b.arrowFunctionExpression(
+        [],
+        b.blockStatement(
+          [addReturnStatementToIfBlocks(conditionalStatement)]
+        )
+      ),
+      []
+    );
+  }
+
+  return conditionalStatement.expression;
 }
 
 export function mapExpression(node, meta) {
@@ -833,7 +914,7 @@ export function mapExpression(node, meta) {
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties], meta);
   } else if (type === 'If') {
-    return mapConditionalExpression(node, meta);
+    return conditionalStatementAsExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {
     return mapNewExpression(node, meta);
   } else if (type === 'Op' && node.operator === 'new') {
