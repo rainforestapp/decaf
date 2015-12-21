@@ -565,6 +565,16 @@ export function lastBreakStatement(nodeList = []) {
   return nodeList;
 }
 
+export function addReturnStatementToIfBlocks(node) {
+  node.consequent = addReturnStatementToBlock(node.consequent);
+  if (node.alternate && node.alternate.type === 'IfStatement') {
+    node.alternate = addReturnStatementToIfBlocks(node.alternate);
+  } else if (node.alternate) {
+    node.alternate = addReturnStatementToBlock(node.alternate);
+  }
+  return node;
+}
+
 export function addReturnStatementToBlock(node) {
   node.body = lastReturnStatement(node.body);
   return node;
@@ -805,11 +815,25 @@ export function mapNewExpression(node, meta) {
   return b.newExpression(mapExpression(constructor), args);
 }
 
+export function mapConditionalExpression(node, meta) {
+  return b.callExpression(
+    b.arrowFunctionExpression(
+      [],
+      b.blockStatement(
+        [addReturnStatementToIfBlocks(mapIfStatement(node, meta))]
+      )
+    ),
+    []
+  );
+}
+
 export function mapExpression(node, meta) {
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression([node.base, ...node.properties], meta);
+  } else if (type === 'If') {
+    return mapConditionalExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {
     return mapNewExpression(node, meta);
   } else if (type === 'Op' && node.operator === 'new') {

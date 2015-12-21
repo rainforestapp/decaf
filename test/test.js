@@ -810,6 +810,49 @@ describe('slices', ()=> {
   });
 });
 
+describe('conditional expressions', ()=> {
+  it(`foo = if bar is true then 12345 else 54321`, ()=> {
+    const example = `foo = if bar is true then 12345 else 54321`;
+    const expected =
+`var foo = (() => {
+  if (bar === true) {
+    return 12345;
+  } else {
+    return 54321;
+  }
+})();`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom'`, ()=> {
+    const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom'`;
+    const expected =
+`var foo = (() => {
+  if (bar === true) {
+    return 12345;
+  } else if (hello === "world") {
+    return 54321;
+  }
+})();`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`, ()=> {
+    const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`;
+    const expected =
+`var foo = (() => {
+  if (bar === true) {
+    return 12345;
+  } else if (hello === "world") {
+    return "boom";
+  } else {
+    return "bam";
+  }
+})();`;
+    expect(compile(example)).toBe(expected);
+  });
+});
+
 describe('file compilation', ()=> {
 
 });
