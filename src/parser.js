@@ -302,12 +302,11 @@ export function mapElseBlock(node, meta) {
   const type = node.constructor.name;
 
   if (type === 'If') {
-    const conditional = mapConditionalStatement(node, meta);
+    const conditional = mapIfStatement(node, meta);
     if (n.IfStatement.check(conditional)) {
       return conditional;
-    } else {
-      return b.blockStatement([conditional]);
     }
+    return b.blockStatement([conditional]);
   } else if (type === 'Block') {
     return mapBlockStatement(node, meta);
   }
@@ -361,6 +360,7 @@ export function mapConditionalStatement(node, meta) {
   if (
     node.elseBody && node.elseBody.expressions.length > 1 ||
     node.body && node.body.expressions.length > 1 ||
+    node.body && node.body.expressions[0].constructor.name === 'If' ||
     node.elseBody && node.elseBody.expressions[0].constructor.name === 'If'
   ) {
     return mapIfStatement(node, meta);
@@ -614,9 +614,7 @@ export function transformToExpression(_node) {
   return b.callExpression(
     b.arrowFunctionExpression(
       [],
-      b.blockStatement([
-        node
-      ])
+      b.blockStatement([node])
     ),
     []
   );

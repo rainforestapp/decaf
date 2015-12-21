@@ -469,8 +469,8 @@ else
     const expected =
 `if (explosion === true) {
   alert("BOOM");
-} else {
-  (bom ? alert("BAM") : undefined);
+} else if (bom) {
+  alert("BAM");
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -485,9 +485,7 @@ if explosion is true
 `;
     const expected =
 `if (explosion === true) {
-  if (fake !== false) {
-    alert("BOOM");
-  }
+  (fake !== false ? alert("BOOM") : undefined);
 }`;
     expect(compile(example)).toBe(expected);
   });
@@ -497,12 +495,7 @@ if explosion is true
 `if explosion is true and boom is false and other
   alert 'BOOM'
 `;
-    const expected =
-`if (explosion === true) {
-  if (fake !== false) {
-    alert("BOOM");
-  }
-}`;
+    const expected = `(explosion === true && boom === false && other ? alert("BOOM") : undefined);`;
     expect(compile(example)).toBe(expected);
   });
 
@@ -535,30 +528,19 @@ else
     const example =
 `unless explosion is false
   alert 'BOOM'`;
-    const expected =
-`if (explosion !== false) {
-  alert("BOOM");
-}`;
+    const expected = `(explosion !== false ? alert("BOOM") : undefined);`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps reverse if statements', ()=> {
-    const example =
-`console.log 'boom' if condition is true`;
-    const expected =
-`if (condition === true) {
-  console.log("boom");
-}`;
+    const example = `console.log 'boom' if condition is true`;
+    const expected = `(condition === true ? console.log("boom") : undefined);`;
     expect(compile(example)).toBe(expected);
   });
 
   it('maps long reverse if statements', ()=> {
-    const example =
-`console.log 'boom' if condition is true and bam isnt false`;
-    const expected =
-`if (condition === true && bam !== false) {
-  console.log("boom");
-}`;
+    const example = `console.log 'boom' if condition is true and bam isnt false`;
+    const expected = `(condition === true && bam !== false ? console.log("boom") : undefined);`;
     expect(compile(example)).toBe(expected);
   });
 });
@@ -830,14 +812,7 @@ describe('slices', ()=> {
 describe('conditional expressions', ()=> {
   it(`foo = if bar is true then 12345 else 54321`, ()=> {
     const example = `foo = if bar is true then 12345 else 54321`;
-    const expected =
-`var foo = (() => {
-  if (bar === true) {
-    return 12345;
-  } else {
-    return 54321;
-  }
-})();`;
+    const expected = `var foo = (bar === true ? 12345 : 54321);`;
     expect(compile(example)).toBe(expected);
   });
 
@@ -860,28 +835,30 @@ describe('conditional expressions', ()=> {
 `var foo = (() => {
   if (bar === true) {
     return 12345;
+  } else if (hello === "world") {
+    return "boom";
   } else {
-    return (hello === "world" ? "boom" : "bam");
+    return "bam";
   }
-})();`
+})();`;
     expect(compile(example)).toBe(expected);
   });
 
   it(`nested if expressions`, ()=> {
-    const example = 
-`b = 
+    const example =
+`b =
   if a is 'loo'
     'boom'
   else
     if boom() is 2
-      abc = 'dwq' + 123
+      abc = 'bom' + 123
       abc`;
     const expected =
 `var b = (() => {
   if (a === "loo") {
     return "boom";
   } else if (boom() === 2) {
-    var abc = "dwq" + 123;
+    var abc = "bom" + 123;
     return abc;
   }
 })();`;
