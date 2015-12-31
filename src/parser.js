@@ -6,7 +6,7 @@ import findWhere from 'lodash/collection/findWhere';
 import findIndex from 'lodash/array/findIndex';
 import compose from 'lodash/function/compose';
 import any from 'lodash/collection/any';
-// import jscodeshift from 'jscodeshift';
+import jsc from 'jscodeshift';
 
 // regexes taken from coffeescript parser
 export const IDENTIFIER = /^(?!\d)[$\w\x7f-\uffff]+$/;
@@ -179,10 +179,12 @@ export function mapCall(node, meta) {
 
 export function mapAssignment(node, meta) {
   const identifierName = node.variable.base.value;
-
-  if (meta[identifierName] === undefined && node.variable.properties.length === 0) {
-    return mapVariableDeclaration(node, meta);
+  if (node.context === '||=') {
   }
+
+  //  if (meta[identifierName] === undefined && node.variable.properties.length === 0) {
+  //    return mapVariableDeclaration(node, meta);
+  //  }
 
   return b.expressionStatement(mapExpression(node, meta));
 }
@@ -708,25 +710,60 @@ export function mapFunction(node, meta) {
   return b.functionExpression(null, args, block);
 }
 
-export function insertReturnStatements(ast) {
-  // console.log(jscodeshift(ast).findIdentifiers().logNames());
-  // So basically what we want to do is convert every
-  // last statement in a function body into a return
-  // statement
-  //  const res = recast.visit(ast, {
-  //    visitNode: function(path) {
-  //      if(path.value.type === 'ArrowFunctionExpression' ||
-  //         path.value.type === 'FunctionExpression'){
-  //        this.traverse(path);
-  //      }else {
-  //        return false;
-  //      }
-  //    },
-  //    visitBlockStatement: function(path) {
-  //    }
-  //  });
+export function insertVariableDeclarations(ast) {
+  //  jsc(ast)
+  //  .find(jsc.AssignmentExpression)
+  //  .forEach((path)=> console.log(path.value))
+
+  jsc(ast)
+  .find(jsc.AssignmentExpression)
+  .filter((path) => {
+    const up = jsc(path.value)
+      .closest(jsc.AssignmentExpression, {left: path.value.left });
+
+    return up.nodes().length < 1;
+  })
+  .forEach((path) => {
+    if (path.parent.value.type === 'ExpressionStatement') {
+      jsc(path).replaceWith((_path)=> {
+        return b.variableDeclaration(
+          'var',
+          [b.variableDeclarator(
+            _path.value.left,
+            _path.value.right
+          )]
+        );
+      });
+    } else {
+      let body = jsc(path).closestScope().nodes()[0].body;
+      if (body.body !== undefined) {
+        body = body.body;
+      }
+      body.unshift(
+        b.variableDeclaration(
+          'var',
+          [b.variableDeclarator(path.value.left, null)]
+        )
+      );
+    }
+
+  });
 
   return ast;
+ // So basically what we want to do is declare all variables
+ // which are undeclared.
+ //  const res = recast.visit(ast, {
+ //    visitNode: function(path) {
+ //      if(path.value.type === 'ArrowFunctionExpression' ||
+ //         path.value.type === 'FunctionExpression'){
+ //        this.traverse(path);
+ //      }else {
+ //        return false;
+ //      }
+ //    },
+ //    visitBlockStatement: function(path) {
+ //    }
+ //  });
 }
 
 export function mapSwitchCase(node, meta) {
@@ -966,10 +1003,20 @@ export function mapParamToAssignment(node) {
 }
 
 export function mapAssignmentExpression(node, meta) {
-  return b.assignmentExpression(
+  const left = mapExpression(node.variable, meta);
+  const right = b.assignmentExpression(
     '=',
-    mapExpression(node.variable, meta),
+    left,
     mapExpression(node.value, meta));
+
+  if (node.context === '||=') {
+    return b.logicalExpression('||', left, right);
+  }
+
+  if (node.context === '?=') {
+  }
+
+  return right;
 }
 
 export function mapObjectPatternItem(node, meta) {
@@ -1057,9 +1104,12 @@ export function parse(coffeeSource) {
 
 
 export function compile(coffeeSource, opts) {
+  const doubleSemicolon = /\;+/g;
   const _compile = compose(
+    // hack because of double semicolon
+    (source) => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
     (code) => recast.prettyPrint(code, opts),
-    insertReturnStatements,
+    insertVariableDeclarations,
     parse);
 
   return _compile(coffeeSource, opts);

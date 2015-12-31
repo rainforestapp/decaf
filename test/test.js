@@ -145,10 +145,80 @@ describe('embedded javascript', ()=> {
   });
 });
 
-describe('AssigmentExpression', ()=>{
+describe('assignment expressions', ()=>{
   it('assigns strings', ()=> {
     expect(compile('bam = "hello"')).toBe('var bam = "hello";');
   });
+
+  it(`foo = (one) -> one ||= 'one'`, ()=> {
+    const example = `foo = (one) -> one ||= 'one'`;
+    const expected =
+`foo = function(one) {
+  return one || (one = "one");
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it(`foo = (one) -> one ?= 'one'`, ()=> {
+    const example = `foo = (one) -> one ?= 'one'`;
+    const expected =
+`foo = function(one) {
+  return one || (one = "one");
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('shadowed assignments', ()=> {
+    const example =
+`a = 'b'
+b = ->
+  a = 123
+  b = ->
+    a = 321
+    b = a`;
+    const expected =
+`var a = "b";
+
+var b = function() {
+  a = 123;
+
+  return b = function() {
+    a = 321;
+    return b = a;
+  };
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('variable declarations in return statements', ()=> {
+    const example =
+`b = ->
+  a = 123`;
+    const expected =
+`var b = function() {
+  var a;
+  return a = 123;
+};`;
+    expect(compile(example)).toBe(expected);
+  });
+
+  it('hoists variable declarations in return statements at the top of the body', ()=> {
+    const example =
+`4 + b = ->
+  c = 'dwq'
+  a = 123`;
+    const expected =
+`var b;
+
+4 + (b = function() {
+  var a;
+  var c = "dwq";
+  return a = 123;
+});`;
+    expect(compile(example)).toBe(expected);
+  });
+
+
 
   it(`doesn't declare variables twice`, ()=> {
     const example =
