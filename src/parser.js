@@ -178,14 +178,6 @@ export function mapCall(node, meta) {
 }
 
 export function mapAssignment(node, meta) {
-  const identifierName = node.variable.base.value;
-  if (node.context === '||=') {
-  }
-
-  //  if (meta[identifierName] === undefined && node.variable.properties.length === 0) {
-  //    return mapVariableDeclaration(node, meta);
-  //  }
-
   return b.expressionStatement(mapExpression(node, meta));
 }
 
@@ -746,7 +738,6 @@ export function insertVariableDeclarations(ast) {
         )
       );
     }
-
   });
 
   return ast;
@@ -1003,20 +994,25 @@ export function mapParamToAssignment(node) {
 }
 
 export function mapAssignmentExpression(node, meta) {
-  const left = mapExpression(node.variable, meta);
-  const right = b.assignmentExpression(
+  const variable = mapExpression(node.variable, meta);
+  const assignment = b.assignmentExpression(
     '=',
-    left,
+    variable,
     mapExpression(node.value, meta));
 
   if (node.context === '||=') {
-    return b.logicalExpression('||', left, right);
+    return b.logicalExpression('||', variable, assignment);
   }
 
   if (node.context === '?=') {
+    return b.conditionalExpression(
+      b.binaryExpression('!=', variable, b.identifier('null')),
+      variable,
+      assignment
+    );
   }
 
-  return right;
+  return assignment;
 }
 
 export function mapObjectPatternItem(node, meta) {
