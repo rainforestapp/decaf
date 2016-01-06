@@ -1,6 +1,5 @@
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
-// import recast from 'recast';
 
 function compile(source) {
   return _compile(source, {tabWidth: 2}).code;
@@ -80,13 +79,15 @@ describe('Existential Operator', ()=> {
 
   it('yo = foo?.bar?', ()=> {
     const example = 'yo = foo?.bar?';
-    const expected = 'var yo = ((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;';
+    const expected = `var yo = ((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;`;
     expect(compile(example)).toBe(expected);
   });
 
   it('yo = foo?.bar?()', ()=> {
     const example = 'yo = a?.b?.c?()';
-    const expected = 'var yo = (typeof a !== "undefined" && a !== null ? ((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0);';
+    const expected =
+`var ref;
+var yo = (typeof a !== "undefined" && a !== null ? ((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0);`;
     expect(compile(example)).toBe(expected);
   });
 });
@@ -153,7 +154,7 @@ describe('assignment expressions', ()=>{
   it(`foo = (one) -> one ||= 'one'`, ()=> {
     const example = `foo = (one) -> one ||= 'one'`;
     const expected =
-`foo = function(one) {
+`var foo = function(one) {
   return one || (one = "one");
 };`;
     expect(compile(example)).toBe(expected);
@@ -162,13 +163,13 @@ describe('assignment expressions', ()=>{
   it(`foo = (one) -> one ?= 'one'`, ()=> {
     const example = `foo = (one) -> one ?= 'one'`;
     const expected =
-`foo = function(one) {
-  return one || (one = "one");
+`var foo = function(one) {
+  return (one != null ? one : one = "one");
 };`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('shadowed assignments', ()=> {
+  it.only('shadowed assignments', ()=> {
     const example =
 `a = 'b'
 b = ->
@@ -205,14 +206,14 @@ var b = function() {
   it('hoists variable declarations in return statements at the top of the body', ()=> {
     const example =
 `4 + b = ->
-  c = 'dwq'
+  c = 'booooo'
   a = 123`;
     const expected =
 `var b;
 
 4 + (b = function() {
   var a;
-  var c = "dwq";
+  var c = "booooo";
   return a = 123;
 });`;
     expect(compile(example)).toBe(expected);

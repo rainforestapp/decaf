@@ -706,17 +706,27 @@ export function insertVariableDeclarations(ast) {
   //  jsc(ast)
   //  .find(jsc.AssignmentExpression)
   //  .forEach((path)=> console.log(path.value))
-
   jsc(ast)
   .find(jsc.AssignmentExpression)
   .filter((path) => {
-    const up = jsc(path.value)
-      .closest(jsc.AssignmentExpression, {left: path.value.left });
+    const assignmentCount = jsc(path.value)
+      .closest(jsc.AssignmentExpression, {left: path.value.left }).nodes().length;
 
-    return up.nodes().length < 1;
+    const parameterCount = jsc(path)
+    .closest(jsc.FunctionExpression, (node) => {
+      return any(node.params, path.value.left);
+    }).nodes().length;
+
+    const variableDeclarationCount = jsc(path.value)
+    .closest(jsc.VariableDeclaration, (node) => {
+      console.log('yo', node);
+      return false;
+    });
+
+    return assignmentCount < 1 && parameterCount < 1;
   })
   .forEach((path) => {
-    if (path.parent.value.type === 'ExpressionStatement') {
+    if (path.parent && path.parent.value.type === 'ExpressionStatement') {
       jsc(path).replaceWith((_path)=> {
         return b.variableDeclaration(
           'var',
@@ -741,20 +751,6 @@ export function insertVariableDeclarations(ast) {
   });
 
   return ast;
- // So basically what we want to do is declare all variables
- // which are undeclared.
- //  const res = recast.visit(ast, {
- //    visitNode: function(path) {
- //      if(path.value.type === 'ArrowFunctionExpression' ||
- //         path.value.type === 'FunctionExpression'){
- //        this.traverse(path);
- //      }else {
- //        return false;
- //      }
- //    },
- //    visitBlockStatement: function(path) {
- //    }
- //  });
 }
 
 export function mapSwitchCase(node, meta) {
