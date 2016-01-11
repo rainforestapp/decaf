@@ -4,6 +4,7 @@ import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import findWhere from 'lodash/collection/findWhere';
 import findIndex from 'lodash/array/findIndex';
+import get from 'lodash/object/get';
 import compose from 'lodash/function/compose';
 import any from 'lodash/collection/any';
 import jsc from 'jscodeshift';
@@ -702,28 +703,85 @@ export function mapFunction(node, meta) {
   return b.functionExpression(null, args, block);
 }
 
+export function getStatement(node) {
+  if(n.Statement.check(node.value) !== true && node.parent){
+    return getStatement(node.parent);
+  }
+  return node;
+}
+
+export function inParentScope(path, filter) {
+  if(typeof filter !== 'function') {
+    throw new Error('filter argument must be function');
+  }
+  const statement = getStatement(path);
+  const scope = jsc(path).closestScope().paths()[0];
+  let statementsInScope;
+  if (n.Program.check(scope.value)) {
+    statementsInScope = scope.value.body;
+  } else if (n.FunctionExpression.check(scope.value) || n.ArrowFunctionExpression.check(scope.value)) {
+    statementsInScope = scope.value.body.body;
+  } else {
+    throw new Error(`Can't recognize scope container of type ${scope.value.type}`);
+  }
+
+  const indexInScope = findIndex(statementsInScope, (node)=> {
+    return statement.value === node
+  });
+
+  const statements = statementsInScope.slice(0, indexInScope).filter(filter);
+  const scopeStatement = getStatement(scope);
+
+  if(n.Program.check(scope.value)) {
+    return statements;
+  } else {
+    return inParentScope(scope.parent, filter).concat([scopeStatement].filter(_s => _s !== null).map(_s => _s.value).filter(filter)).concat(statements);
+  }
+}
+
 export function insertVariableDeclarations(ast) {
-  //  jsc(ast)
-  //  .find(jsc.AssignmentExpression)
-  //  .forEach((path)=> console.log(path.value))
   jsc(ast)
-  .find(jsc.AssignmentExpression)
+  .find(jsc.AssignmentExpression, (node)=> {
+    return n.MemberExpression.check(node.left) !== true;
+  })
   .filter((path) => {
-    const assignmentCount = jsc(path.value)
-      .closest(jsc.AssignmentExpression, {left: path.value.left }).nodes().length;
+    //const assignmentCount = jsc(path.value)
+    // .closest(jsc.AssignmentExpression, {left: path.value.left }).nodes().length;
 
-    const parameterCount = jsc(path)
-    .closest(jsc.FunctionExpression, (node) => {
-      return any(node.params, path.value.left);
-    }).nodes().length;
+    const shadowedVariables = inParentScope(path, (node)=> {
+      if (n.VariableDeclaration.check(node)) {
+        return findIndex(node.declarations, {id: {type: 'Identifier', name: path.value.left.name}}) > -1
+      }
 
-    const variableDeclarationCount = jsc(path.value)
-    .closest(jsc.VariableDeclaration, (node) => {
-      console.log('yo', node);
+      if (n.ExpressionStatement.check(node)) {
+        if((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
+           findIndex(node.expression.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
+
+          return true;
+        }
+
+        if (n.AssignmentExpression.check(node.expression)) {
+          if (node.expression.left.name === path.value.left.name) {
+            return true;
+          } else if(n.FunctionExpression.check(node.expression.right) || n.ArrowFunctionExpression.check(node.expression.right)) {
+            if (findIndex(node.expression.right.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
+              return true;
+            } else if(findIndex(node.expression.right.params, {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {
+              return true;
+            }
+          }
+        }
+      }
+
+      if (n.ReturnStatement.check(node)) {
+        if (n.AssignmentExpression.check(node.argument)) {
+          return node.argument.left.name === path.value.left.name;
+        }
+      }
       return false;
     });
 
-    return assignmentCount < 1 && parameterCount < 1;
+    return shadowedVariables.length < 1;
   })
   .forEach((path) => {
     if (path.parent && path.parent.value.type === 'ExpressionStatement') {
@@ -990,7 +1048,14 @@ export function mapParamToAssignment(node) {
 }
 
 export function mapAssignmentExpression(node, meta) {
-  const variable = mapExpression(node.variable, meta);
+  let variable;
+  if (get(node, 'variable.base.properties.length') > 0) {
+    variable = mapAssignmentPattern(node.variable.base, meta);
+  } else {
+    variable = mapExpression(node.variable, meta);
+  }
+  
+  //console.log('var', node);
   const assignment = b.assignmentExpression(
     '=',
     variable,

@@ -169,7 +169,17 @@ describe('assignment expressions', ()=>{
     expect(compile(example)).toBe(expected);
   });
 
-  it.only('shadowed assignments', ()=> {
+  it(`(one) -> one ?= 'one'`, ()=> {
+    const example = `(one) -> one ?= 'one'`;
+    const expected =
+`(function(one) {
+  return (one != null ? one : one = "one");
+});`;
+    expect(compile(example)).toBe(expected);
+  });
+
+
+  it('shadowed assignments', ()=> {
     const example =
 `a = 'b'
 b = ->
@@ -459,6 +469,7 @@ describe('ClassExpression', ()=> {
 
 
 describe('Destructuring', ()=> {
+
   it('maps simple object destructuring assignments', ()=> {
     const example = `{a, b} = abam`;
     const expected =
@@ -770,7 +781,7 @@ describe('ranges', ()=> {
     const example = `[1...bom]`;
     const expected =
 `(function() {
-  results = [];
+  var results = [];
 
   for (var i = 1; (1 <= bom ? i < bom : i > bom); (1 <= bom ? i++ : i--)) {
     results.push(i);
@@ -946,6 +957,8 @@ describe('return statements', ()=> {
     c = b if c is 'd'`;
     const expected =
 `var a = (() => {
+  var c;
+
   switch (a) {
   case "b":
     return "c";
@@ -966,6 +979,8 @@ describe('return statements', ()=> {
         c = b if c is 'd'`;
     const expected =
 `var a = (b !== true ? (() => {
+  var c;
+
   switch (a) {
   case "b":
     return "c";
@@ -987,6 +1002,8 @@ describe('return statements', ()=> {
     123`;
     const expected =
 `var a = (() => {
+  var c;
+
   if (b !== true) {
     switch (a) {
     case "b":
