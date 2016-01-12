@@ -160,6 +160,18 @@ describe('assignment expressions', ()=>{
     expect(compile(example)).toBe(expected);
   });
 
+  it('a = b = c = (d) -> a + b + c + d', ()=> {
+    const example = `a = b = c = (d) -> a + b + c + d`;
+    const expected =
+`var c;
+var b;
+
+var a = b = c = function(d) {
+  return a + b + c + d;
+};`
+    expect(compile(example)).toBe(expected);
+  })
+
   it(`foo = (one) -> one ?= 'one'`, ()=> {
     const example = `foo = (one) -> one ?= 'one'`;
     const expected =
@@ -228,8 +240,6 @@ var b = function() {
 });`;
     expect(compile(example)).toBe(expected);
   });
-
-
 
   it(`doesn't declare variables twice`, ()=> {
     const example =
