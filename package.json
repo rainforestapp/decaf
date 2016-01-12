@@ -2,11 +2,13 @@
   "name": "cs2js",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "mocha --compilers js:babel-core/register -R ../../../reporter",
+    "build": "mkdir -p dist && babel src/parser.js --out-file dist/index.js",
     "watchTest": "mocha -w --compilers js:babel-core/register -R ../../../reporter",
-    "watchTestDebug": "mocha -w debug --compilers js:babel-core/register"
+    "watchTestDebug": "mocha -w debug --compilers js:babel-core/register",
+    "postinstall": "npm run build"
   },
   "author": "",
   "license": "ISC",
@@ -25,6 +27,7 @@
     "source-map-support": "0.3.3"
   },
   "devDependencies": {
+    "babel-cli": "6.4.0",
     "babel-plugin-object-assign": "1.2.1",
     "babel-plugin-transform-object-assign": "6.1.18",
     "mocha": "2.3.4"
