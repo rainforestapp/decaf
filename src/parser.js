@@ -134,16 +134,25 @@ function mapValue(node, meta) {
 
 function mapOp(node, meta) {
   const {operator} = node;
+  if (node.operator === '++' || node.operator === '--') {
+    return b.updateExpression(
+      node.operator,
+      mapExpression(node.first, meta), !node.flip);
+  }
+
+  if (!node.second) {
+    return b.unaryExpression(
+      node.operator,
+      mapExpression(node.first, meta));
+  }
+
   if (operator === '||' || operator === '&&') {
     return b.logicalExpression(
       node.operator,
       mapExpression(node.first, meta),
       mapExpression(node.second, meta));
-  } else if (operator === '!') {
-    return b.unaryExpression(
-      node.operator,
-      mapExpression(node.first, meta));
   }
+
   return b.binaryExpression(
     node.operator,
     mapExpression(node.first, meta),

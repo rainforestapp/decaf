@@ -45,6 +45,18 @@ describe('Values', ()=> {
   });
 });
 
+describe('Unary Expressions', () => {
+  it.only('correctly converts', ()=> {
+    expect(compile('-boom')).toBe('-boom;');
+    expect(compile('+boom')).toBe('+boom;');
+    expect(compile('+boom')).toBe('+boom;');
+    expect(compile('num++')).toBe('num++;');
+    expect(compile('num--')).toBe('num--;');
+    expect(compile('--num')).toBe('--num;');
+    expect(compile('++num')).toBe('++num;');
+  })
+});
+
 describe('new Expressions', ()=> {
   it('new FooBar', ()=> {
     expect(compile('new FooBar')).toBe('new FooBar();');
@@ -475,6 +487,21 @@ describe('ClassExpression', ()=> {
       expect(compile(example)).toBe(expected);
     });
   });
+
+  describe('class methods can be called directly', ()=> {
+    it(`Foo::bar()`, ()=> {
+      expect(compile(`Foo::bar()`)).toBe(`Foo.prototype.bar();`);
+    });
+
+    it(`Foo::bar::foo()`, ()=> {
+      expect(compile(`Foo::bar::foo()`)).toBe(`Foo.prototype.bar.prototype.foo();`);
+    });
+
+    it.only(`Foo?::bar::foo()`, ()=> {
+      console.log(compile(`Foo?::bar::foo()`));
+      expect(compile(`Foo?::bar::foo()`)).toNotBe(`Foo.prototype.bar.prototype.foo();`);
+    });
+  });
 });
 
 
@@ -775,7 +802,14 @@ describe('comprehensions', ()=> {
 }).map(x => {
   return x;
 }));`;
+
     expect(compile(example)).toBe(expected);
+  });
+
+  it(`"b" of a`, ()=> {
+    const example = `"b" of a`;
+    const expected = `"b" in a;`;
+    expect(compile(example)).toBe(expected)
   });
 });
 
@@ -908,6 +942,12 @@ describe('conditional expressions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
+  it(`console.log "boom" if "a" of b`, ()=> {
+    const example = `console.log "boom" if "a" of b`;
+    const expected = `("a" in b ? console.log("boom") : undefined);`
+    expect(compile(example)).toBe(expected);
+  })
+
   it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom'`, ()=> {
     const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom'`;
     const expected =
@@ -1029,4 +1069,11 @@ describe('return statements', ()=> {
 })();`;
     expect(compile(example)).toBe(expected);
   });
+});
+
+describe('large code examples', ()=> {
+  //  it.only('getCursorPosition', ()=> {
+  //const example = `Sel.moveStart "character", -el.value.length`;
+  //    console.log(compile(example));
+  //  });
 });
