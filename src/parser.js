@@ -1054,8 +1054,7 @@ function mapAssignmentExpression(node, meta) {
   } else {
     variable = mapExpression(node.variable, meta);
   }
-  
-  //console.log('var', node);
+
   const assignment = b.assignmentExpression(
     '=',
     variable,
