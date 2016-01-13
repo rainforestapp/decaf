@@ -43,7 +43,7 @@ function stringToRegex(inputstring) {
   return new RegExp(match[1], match[2]);
 }
 
-function mapMemberExpression(properties, meta) {
+function mapMemberProperties(properties, meta) {
   const restProperties = properties.slice(0, properties.length - 1);
   const right = mapExpression(properties[properties.length - 1], meta);
   const isComputed = right.type === 'Literal';
@@ -52,10 +52,18 @@ function mapMemberExpression(properties, meta) {
   if (restProperties.length === 1) {
     left = mapExpression(restProperties[0], meta);
   } else {
-    left = mapMemberExpression(restProperties, meta);
+    left = mapMemberProperties(restProperties, meta);
   }
 
   return b.memberExpression(left, right, isComputed);
+
+}
+
+function mapMemberExpression(node, meta) {
+  if (findIndex(node.base.properties, {soak: true})) {
+    return recast.parse(node.compile(meta)).program.body[0].expression;
+  }
+  return mapMemberProperties([node.base, ...node.properties], meta);
 }
 
 function mapLiteral(node) {
@@ -102,7 +110,7 @@ function mapRange(node, meta) {
 
 function mapSlice(node, meta) {
   return b.callExpression(
-    b.identifier('splice'),
+    b.identifier('slice'),
     [
       mapExpression(node.range.from, meta),
       mapExpression(node.range.to, meta),
@@ -1001,7 +1009,7 @@ function mapExpression(node, meta) {
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
-    return mapMemberExpression([node.base, ...node.properties], meta);
+    return mapMemberExpression(node, meta);
   } else if (type === 'If') {
     return conditionalStatementAsExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {

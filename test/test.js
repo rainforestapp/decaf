@@ -46,7 +46,7 @@ describe('Values', ()=> {
 });
 
 describe('Unary Expressions', () => {
-  it.only('correctly converts', ()=> {
+  it('correctly converts', ()=> {
     expect(compile('-boom')).toBe('-boom;');
     expect(compile('+boom')).toBe('+boom;');
     expect(compile('+boom')).toBe('+boom;');
@@ -497,16 +497,13 @@ describe('ClassExpression', ()=> {
       expect(compile(`Foo::bar::foo()`)).toBe(`Foo.prototype.bar.prototype.foo();`);
     });
 
-    it.only(`Foo?::bar::foo()`, ()=> {
-      console.log(compile(`Foo?::bar::foo()`));
-      expect(compile(`Foo?::bar::foo()`)).toNotBe(`Foo.prototype.bar.prototype.foo();`);
+    it(`Foo?::bar::foo()`, ()=> {
+      expect(compile(`Foo?::bar()`)).toNotBe(`((typeof Foo !== "undefined" && Foo !== null ? Foo.prototype.bar.prototype.foo : void 0))();`);
     });
   });
 });
 
-
 describe('Destructuring', ()=> {
-
   it('maps simple object destructuring assignments', ()=> {
     const example = `{a, b} = abam`;
     const expected =
@@ -918,19 +915,19 @@ describe('argument splats', () =>{
 describe('slices', ()=> {
   it('bam[1...10]', ()=> {
     const example = `bam[1...10]`;
-    const expected = `bam.splice(1, 10);`;
+    const expected = `bam.slice(1, 10);`;
     expect(compile(example)).toBe(expected);
   });
 
   it('bam[a()...b()]', ()=> {
     const example = `bam[a()...b()]`;
-    const expected = `bam.splice(a(), b());`;
+    const expected = `bam.slice(a(), b());`;
     expect(compile(example)).toBe(expected);
   });
 
   it(`bam[a['foobar'].bom...100]`, ()=> {
     const example = `bam[a['foobar'].bom...100]`;
-    const expected = `bam.splice(a["foobar"].bom, 100);`;
+    const expected = `bam.slice(a["foobar"].bom, 100);`;
     expect(compile(example)).toBe(expected);
   });
 });
