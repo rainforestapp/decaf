@@ -43,6 +43,15 @@ describe('Values', ()=> {
     expect(compile('a: 213, b: "321"')).toBe('({\n  a: 213,\n  b: "321"\n});');
     expect(compile('false')).toBe('false;');
   });
+
+
+  it('undefined', ()=> {
+    expect(compile('undefined')).toBe('undefined;');
+  });
+
+  it('null', ()=> {
+    expect(compile('null')).toBe('null;');
+  });
 });
 
 describe('Unary Expressions', () => {
@@ -1069,8 +1078,52 @@ describe('return statements', ()=> {
 });
 
 describe('large code examples', ()=> {
-  //  it.only('getCursorPosition', ()=> {
-  //const example = `Sel.moveStart "character", -el.value.length`;
-  //    console.log(compile(example));
-  //  });
+  it('getCursorPosition', ()=> {
+    const example = 
+String.raw`$ = require 'jquery'
+
+$.fn.serializeForm = ->
+  json = {}
+  for el in serializeArray($(this))
+    json[el.name] = el.value
+  json
+
+serializeArray = (el) ->
+  inputs = []
+  el.find('input, textarea, select').each (i, input) =>
+    unless input.disabled
+      if $(input).is(':checkbox')
+        inputs.push
+          name: input.name
+          value: $(input).is(':checked')
+      else
+        val = $(input).val()
+        inputs.push
+          name: input.name
+          value: val
+
+  inputs
+
+(($) ->
+  re = /([^&=]+)=?([^&]*)/g
+  decodeRE = /\+/g # Regex for replacing addition symbol with a space
+  decode = (str) ->
+    decodeURIComponent str.replace(decodeRE, " ")
+
+  $.parseParams = (query) ->
+    params = {}
+    e = undefined
+    while e = re.exec(query)
+      k = decode(e[1])
+      v = decode(e[2])
+      if k.substring(k.length - 2) is "[]"
+        k = k.substring(0, k.length - 2)
+        (params[k] or (params[k] = [])).push v
+      else
+        params[k] = v
+    params
+) jQuery
+`;
+    console.log(compile(example));
+  });
 });

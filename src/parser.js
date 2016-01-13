@@ -125,6 +125,10 @@ function mapValue(node, meta) {
     return mapLiteral(node, meta);
   } else if (type === 'Range') {
     return mapRange(node, meta);
+  } else if (type === 'Undefined') {
+    return b.identifier('undefined');
+  } else if (type === 'Null') {
+    return b.identifier('null');
   } else if (type === 'Bool') {
     return mapBoolean(node, meta);
   } else if (type === 'Arr' && meta.left === true) {
