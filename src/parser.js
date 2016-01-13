@@ -175,20 +175,20 @@ function mapArguments(args, meta) {
   return args.map((arg)=> mapExpression(arg, meta));
 }
 
-function mapCall(node, meta) {
+function mapCall(node, meta={}) {
   let left;
-  const methodName = meta.methodName;
+  const superMethodName = meta.superMethodName;
 
   if (node.soak === true) {
     return recast
       .parse(node.compile(meta))
       .program.body[0].expression;
-  } else if (node.isSuper === true && methodName === 'constructor') {
+  } else if (node.isSuper === true && superMethodName === 'constructor') {
     left = b.identifier('super');
-  } else if (node.isSuper === true) {
+  } else if (node.isSuper === true && superMethodName !== undefined) {
     left = b.memberExpression(
       b.identifier('super'),
-      b.identifier(methodName)
+      b.identifier(superMethodName)
     );
   } else {
     left = mapExpression(node.variable, meta);
@@ -204,17 +204,17 @@ function mapAssignment(node, meta) {
 }
 
 function mapClassBodyElement(node, meta) {
-  const methodName = node.variable.base.value;
+  const superMethodName = node.variable.base.value;
   let elementType = 'method';
 
-  if (methodName === 'constructor') {
+  if (superMethodName === 'constructor') {
     elementType = 'constructor';
   }
 
   const _meta = Object.assign(
     {},
     meta,
-    {methodName});
+    {superMethodName});
 
   return b.methodDefinition(
     elementType,
@@ -405,7 +405,9 @@ function mapTryCatchBlock(node, meta) {
 function mapStatement(node, meta) {
   const type = node.constructor.name;
 
-  if (type === 'Assign') {
+  if (type === 'While') {
+    return mapWhileLoop(node, meta);
+  } else if (type === 'Assign') {
     return mapAssignment(node, meta);
   } else if (type === 'For') {
     return mapForStatement(node, meta);
@@ -1007,6 +1009,12 @@ function conditionalStatementAsExpression(node, meta) {
   }
 
   return conditionalStatement.expression;
+}
+
+function mapWhileLoop(node, meta) {
+  return b.whileStatement(
+    mapExpression(node.condition),
+    mapBlockStatement(node.body))
 }
 
 function mapExpression(node, meta) {

@@ -1077,6 +1077,18 @@ describe('return statements', ()=> {
   });
 });
 
+describe('while loops', ()=> {
+  it(`console.log 'boom' while i++ < 10`, ()=> {
+    const example = `console.log 'boom' while i++ < 10`
+    const expected =
+`while (i++ < 10) {
+  console.log("boom");
+}`
+
+    expect(compile(example)).toBe(expected);
+  });
+});
+
 describe('large code examples', ()=> {
   it('getCursorPosition', ()=> {
     const example = 
@@ -1124,6 +1136,7 @@ serializeArray = (el) ->
     params
 ) jQuery
 `;
-    console.log(compile(example));
+//console.log(compile(example));
+// TODO
   });
 });
