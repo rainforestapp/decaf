@@ -104,7 +104,7 @@ function mapArrayExpression(node, meta) {
 }
 
 function mapRange(node, meta) {
-  const compiledRange = recast.parse(node.compile(meta)).program.body[0];
+  const compiledRange = recast.parse(recast.prettyPrint(recast.parse(node.compile(meta)))).program.body[0];
   return compiledRange.expression;
 }
 
@@ -424,10 +424,19 @@ function mapStatement(node, meta) {
   return b.expressionStatement(mapExpression(node, meta));
 }
 
-function mapBlockStatement(node, meta) {
-  return b.blockStatement(node.expressions.map((expr) => {
+function mapBlockStatements(node, meta) {
+  return node.expressions.map((expr) => {
     return mapStatement(expr, meta);
-  }));
+  });
+}
+
+function mapBlockStatement(node, meta) {
+  const comments = node.expressions.filter( expr => expr.comment );
+  node.expressions = node.expressions.filter( expr => !expr.comment );
+  const block = b.blockStatement(mapBlockStatements(node, meta));
+  console.log(block);
+  block.comments = comments.map(mapComment);
+  return block;
 }
 
 function mapInArrayExpression(node, meta) {
@@ -840,12 +849,10 @@ function mapSwitchCase(node, meta) {
   if (test !== null) {
     test = mapExpression(test, meta);
   }
-  const caseBlock = block.expressions.map((expr) => mapStatement(expr, meta));
 
   return b.switchCase(
     test,
-    caseBlock
-  );
+    mapBlockStatements(block, meta));
 }
 
 function mapSwitchStatement(node, meta) {
@@ -1011,10 +1018,15 @@ function conditionalStatementAsExpression(node, meta) {
   return conditionalStatement.expression;
 }
 
+function mapComment(node) {
+  const comment = b.block(node.comment);
+  return comment;
+}
+
 function mapWhileLoop(node, meta) {
   return b.whileStatement(
     mapExpression(node.condition),
-    mapBlockStatement(node.body))
+    mapBlockStatement(node.body, meta))
 }
 
 function mapExpression(node, meta) {
@@ -1182,8 +1194,14 @@ function parse(coffeeSource) {
   const ast = coffeeAst(coffeeSource);
   const scope = new Scope(null, parse, null, []);
   const meta = {scope, indent: ' '};
-  const body = ast.expressions.map((node) => mapStatement(node, meta));
-  const program = b.program(body);
+
+  const comments = ast.expressions.filter( expr => expr.comment );
+  ast.expressions = ast.expressions.filter( expr => !expr.comment );
+
+  const program = b.program(mapBlockStatements(ast, meta));
+
+  program.comments = comments.map(mapComment);
+
   return program;
 }
 
@@ -1193,7 +1211,7 @@ export function compile(coffeeSource, opts) {
   const _compile = compose(
     // hack because of double semicolon
     (source) => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
-    (code) => recast.prettyPrint(code, opts),
+    (code) => recast.print(code, opts),
     insertVariableDeclarations,
     parse);
 

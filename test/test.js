@@ -2,7 +2,7 @@ import expect from 'expect';
 import {compile as _compile} from '../src/parser';
 
 function compile(source) {
-  return _compile(source, {tabWidth: 2}).code;
+  return _compile(source, {tabWidth: 2, quote: 'double'}).code;
 }
 
 describe('Values', ()=> {
@@ -54,6 +54,37 @@ describe('Values', ()=> {
   });
 });
 
+describe('Comments', ()=> {
+  it('multiline comments in Program', ()=> {
+    const example =
+`###
+Hello I am a comment
+###`;
+    const expected =
+`/*
+Hello I am a comment
+*/
+`
+    expect(compile(example)).toBe(expected);
+  });
+
+  it.only('nested multiline comments', ()=> {
+    const example =
+`fun = () ->
+  console.log('yoyoyo');
+  ###
+  Hello I am a comment
+  ###`;
+    const expected =
+`var fun = function() {
+  /*
+  Hello I am a comment
+  */
+}`
+    expect(compile(example)).toBe(expected);
+  });
+});
+
 describe('Unary Expressions', () => {
   it('correctly converts', ()=> {
     expect(compile('-boom')).toBe('-boom;');
@@ -94,13 +125,13 @@ describe('Existential Operator', ()=> {
 
   it('foo?.bar?', ()=> {
     const example = 'foo?.bar?';
-    const expected = '((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;';
+    const expected = '(typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;';
     expect(compile(example)).toBe(expected);
   });
 
   it('yo = foo?.bar?', ()=> {
     const example = 'yo = foo?.bar?';
-    const expected = `var yo = ((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;`;
+    const expected = `var yo = (typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;`;
     expect(compile(example)).toBe(expected);
   });
 
@@ -108,7 +139,7 @@ describe('Existential Operator', ()=> {
     const example = 'yo = a?.b?.c?()';
     const expected =
 `var ref;
-var yo = (typeof a !== "undefined" && a !== null ? ((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0);`;
+var yo = typeof a !== "undefined" && a !== null ? (ref = a.b) != null ? typeof ref.c === "function" ? ref.c() : void 0 : void 0 : void 0;`;
     expect(compile(example)).toBe(expected);
   });
 });
@@ -831,13 +862,13 @@ describe('ranges', ()=> {
     const example = `[1...bom]`;
     const expected =
 `(function() {
-  var results = [];
+    var results = [];
 
-  for (var i = 1; (1 <= bom ? i < bom : i > bom); (1 <= bom ? i++ : i--)) {
-    results.push(i);
-  }
+    for (var i = 1; (1 <= bom ? i < bom : i > bom); (1 <= bom ? i++ : i--)) {
+        results.push(i);
+    }
 
-  return results;
+    return results;
 }).apply(this);`;
 
     expect(compile(example)).toBe(expected);
@@ -935,7 +966,7 @@ describe('slices', ()=> {
   });
 
   it(`bam[a['foobar'].bom...100]`, ()=> {
-    const example = `bam[a['foobar'].bom...100]`;
+    const example = `bam[a["foobar"].bom...100]`;
     const expected = `bam.slice(a["foobar"].bom, 100);`;
     expect(compile(example)).toBe(expected);
   });
@@ -1090,9 +1121,14 @@ describe('while loops', ()=> {
 });
 
 describe('large code examples', ()=> {
-  it('getCursorPosition', ()=> {
+  it('code example', ()=> {
     const example = 
 String.raw`$ = require 'jquery'
+
+###
+yoyoyo here's the thing
+bobobo
+###
 
 $.fn.serializeForm = ->
   json = {}
