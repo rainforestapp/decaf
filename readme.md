@@ -25,6 +25,10 @@ var js = decaf('()-> alert "yoyoyo"');
 
 As a second argument, you can parse options to the javascript printer, we use [recast](https://github.com/benjamn/recast) to print the js, so any options you pass as a second argument will be passed onto it.
 
+### Todo
+
+- Single and multi-comment lines (can't be done with coffeescript parser, also it's very unintuitive right now to create comment blocks with the ast-types library)
+
 ### Design choices
 - [Coffeescript](https://github.com/jashkenas/coffeescript/blob/master/src/nodes.coffee) compiler to build coffeescript syntax tree.
 - Using [ast-types](https://github.com/benjamn/ast-types/), a library for building an esprima compatible syntax tree 
