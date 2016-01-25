@@ -14,12 +14,12 @@ When decaf encounters coffeescript syntax which can't be transpiled to es6 it fa
 
 Right now, the easiest way to get started using decaf is to require it as a node module and simply use it as a transform. We recommend using it with tools like [jscodeshift](https://github.com/facebook/jscodeshift/).
 
-To install (we're not on npm yet), install it from github `npm install juliankrispel/decaf`.
+To install run `npm install decafjs`.
 
 To use it simply require it as any other node module:
 
 ```js
-var decaf = require('decaf');
+var decaf = require('decafjs');
 var js = decaf('()-> alert "yoyoyo"');
 ```
 
