@@ -20,7 +20,7 @@ To use it simply require it as any other node module:
 
 ```js
 var decaf = require('decaf');
-var js = decaf('()-> alert 'yoyoyo');
+var js = decaf('()-> alert "yoyoyo"');
 ```
 
 As a second argument, you can parse options to the javascript printer, we use [recast](https://github.com/benjamn/recast) to print the js, so any options you pass as a second argument will be passed onto it.
