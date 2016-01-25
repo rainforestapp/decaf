@@ -434,7 +434,6 @@ function mapBlockStatement(node, meta) {
   const comments = node.expressions.filter( expr => expr.comment );
   node.expressions = node.expressions.filter( expr => !expr.comment );
   const block = b.blockStatement(mapBlockStatements(node, meta));
-  console.log(block);
   block.comments = comments.map(mapComment);
   return block;
 }
@@ -1208,6 +1207,7 @@ function parse(coffeeSource) {
 
 export function compile(coffeeSource, opts) {
   const doubleSemicolon = /\;+/g;
+  opts = opts || {tabWidth: 2, quote: 'double'};
   const _compile = compose(
     // hack because of double semicolon
     (source) => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
@@ -1215,5 +1215,5 @@ export function compile(coffeeSource, opts) {
     insertVariableDeclarations,
     parse);
 
-  return _compile(coffeeSource, opts);
+  return _compile(coffeeSource, opts).code;
 }
