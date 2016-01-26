@@ -1,7 +1,7 @@
 {
   "name": "decafjs",
-  "version": "0.0.3",
-  "description": "",
+  "version": "0.0.4",
+  "description": "A coffeescript to es6 transpiler",
   "repository": {
     "type": "git",
     "url": "git@github.com:juliankrispel/decaf.git"
