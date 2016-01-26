@@ -1,6 +1,6 @@
 {
   "name": "decafjs",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "repository": {
     "type": "git",
@@ -12,7 +12,7 @@
     "build": "mkdir -p dist && babel src/parser.js --out-file dist/index.js",
     "watchTest": "mocha -w --compilers js:babel-core/register -R ../../../reporter",
     "watchTestDebug": "mocha -w debug --compilers js:babel-core/register",
-    "prebublish": "npm run build"
+    "prepublish": "npm run build"
   },
   "author": "",
   "license": "ISC",
