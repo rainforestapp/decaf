@@ -8,7 +8,9 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "test": "mocha --compilers js:babel-core/register -R ../../../reporter",
+    "test:mocha": "mocha --compilers js:babel-core/register -R ../../../reporter",
+    "test:lint": "eslint src",
+    "test": "npm run test:mocha && npm run test:lint",
     "build": "mkdir -p dist && babel src/parser.js --out-file dist/index.js",
     "watchTest": "mocha -w --compilers js:babel-core/register -R ../../../reporter",
     "watchTestDebug": "mocha -w debug --compilers js:babel-core/register",
@@ -31,6 +33,13 @@
     "babel": "6.1.18",
     "babel-core": "6.1.21",
     "babel-preset-es2015": "6.1.18",
+    "eslint": "1.10.3",
+    "eslint-config-airbnb": "4.0.0",
+    "eslint-plugin-babel": "3.0.0",
+    "eslint-plugin-react": "3.16.1",
     "expect": "1.13.0"
+  },
+  "engines": {
+    "node": "*"
   }
 }

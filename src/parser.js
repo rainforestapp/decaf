@@ -10,23 +10,23 @@ import any from 'lodash/collection/any';
 import jsc from 'jscodeshift';
 
 // regexes taken from coffeescript parser
-const IDENTIFIER = /^(?!\d)[$\w\x7f-\uffff]+$/;
-const SIMPLENUM = /^[+-]?\d+$/;
-const HEXNUM = /^[+-]?0x[\da-f]+/i;
+// const IDENTIFIER = /^(?!\d)[$\w\x7f-\uffff]+$/;
+// const SIMPLENUM = /^[+-]?\d+$/;
+// const HEXNUM = /^[+-]?0x[\da-f]+/i;
 const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
-const IS_BOOLEAN = /^(?:(?:true)|(?:false))$/;
+// const IS_BOOLEAN = /^(?:(?:true)|(?:false))$/;
 
 const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/;
 
-function isExpression(node) {
-  const type = node.constructor.name;
-  if (type === 'If') {
-    return false;
-  }
-  return true;
-}
+// function isExpression(node) {
+//   const type = node.constructor.name;
+//   if (type === 'If') {
+//     return false;
+//   }
+//   return true;
+// }
 
 function mapBoolean(node) {
   if (node.base.val === 'true') {
@@ -56,7 +56,6 @@ function mapMemberProperties(properties, meta) {
   }
 
   return b.memberExpression(left, right, isComputed);
-
 }
 
 function mapMemberExpression(node, meta) {
@@ -91,16 +90,16 @@ function mapKey(node) {
 }
 
 function mapObjectExpression(node, meta) {
-  return b.objectExpression(node.base.properties.map((property)=> {
-    return b.property(
+  return b.objectExpression(node.base.properties.map(property =>
+    b.property(
       'init',
       mapExpression(property.variable || property.base, meta),
-      mapExpression(property.value || property.base, meta));
-  }));
+      mapExpression(property.value || property.base, meta))
+  ));
 }
 
 function mapArrayExpression(node, meta) {
-  return b.arrayExpression(node.objects.map((expr) => mapExpression(expr, meta)));
+  return b.arrayExpression(node.objects.map(expr => mapExpression(expr, meta)));
 }
 
 function mapRange(node, meta) {
@@ -138,7 +137,7 @@ function mapValue(node, meta) {
   } else if (type === 'Obj') {
     return mapObjectExpression(node, meta);
   } else if (type === 'Parens') {
-    return b.sequenceExpression(node.base.body.expressions.map((expr) => mapExpression(expr, meta)));
+    return b.sequenceExpression(node.base.body.expressions.map(expr => mapExpression(expr, meta)));
   }
 
   throw new Error(`can't convert node of type: ${type} to value - not recognized`);
@@ -172,10 +171,10 @@ function mapOp(node, meta) {
 }
 
 function mapArguments(args, meta) {
-  return args.map((arg)=> mapExpression(arg, meta));
+  return args.map(arg => mapExpression(arg, meta));
 }
 
-function mapCall(node, meta={}) {
+function mapCall(node, meta = {}) {
   let left;
   const superMethodName = meta.superMethodName;
 
@@ -223,14 +222,15 @@ function mapClassBodyElement(node, meta) {
 }
 
 function getBoundMethodNames(classElements, meta) {
-  return classElements.filter((el)=> {
-    return el.value.constructor.name === 'Code' &&
-      el.value.bound === true;
-  }).map(el => mapExpression(el.variable, meta));
+  return classElements
+    .filter(el =>
+      el.value.constructor.name === 'Code' &&
+        el.value.bound === true
+    ).map(el => mapExpression(el.variable, meta));
 }
 
 function unbindMethods(classElements) {
-  return classElements.map((el)=> {
+  return classElements.map(el => {
     if (el.value.constructor.name === 'Code') {
       el.value.bound = false;
     }
@@ -247,7 +247,7 @@ function mapClassBody(node, meta) {
     classElements = node.expressions[0].base.properties;
     boundMethods = getBoundMethodNames(classElements, meta);
     classElements = unbindMethods(classElements);
-    classElements = classElements.map( el => mapClassBodyElement(el, meta));
+    classElements = classElements.map(el => mapClassBodyElement(el, meta));
   }
 
   let constructor = findWhere(classElements, {kind: 'constructor'});
@@ -265,8 +265,8 @@ function mapClassBody(node, meta) {
     // bind all the bound methods to the class
     constructor.value.body.body =
       constructor.value.body.body.concat(
-        boundMethods.map((identifier)=> {
-          return b.expressionStatement(
+        boundMethods.map(identifier =>
+          b.expressionStatement(
             b.callExpression(
               b.memberExpression(
                 b.memberExpression(
@@ -277,8 +277,8 @@ function mapClassBody(node, meta) {
               ),
               [b.thisExpression()]
             )
-          );
-        })
+          )
+        )
     );
   }
 
@@ -425,14 +425,12 @@ function mapStatement(node, meta) {
 }
 
 function mapBlockStatements(node, meta) {
-  return node.expressions.map((expr) => {
-    return mapStatement(expr, meta);
-  });
+  return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
 function mapBlockStatement(node, meta) {
-  const comments = node.expressions.filter( expr => expr.comment );
-  node.expressions = node.expressions.filter( expr => !expr.comment );
+  const comments = node.expressions.filter(expr => expr.comment);
+  node.expressions = node.expressions.filter(expr => !expr.comment);
   const block = b.blockStatement(mapBlockStatements(node, meta));
   block.comments = comments.map(mapComment);
   return block;
@@ -453,19 +451,19 @@ function extractArgumentMemberAssignment(nodes) {
   .filter(node =>
           node.type === 'AssignmentExpression' &&
           node.left.type === 'MemberExpression')
-  .map((node)=> {
-    return b.expressionStatement(
+  .map(node =>
+    b.expressionStatement(
       b.assignmentExpression(
         node.operator,
         node.left,
         node.left.property
       )
-    );
-  });
+    )
+  );
 }
 
 function normalizeArguments(nodes) {
-  return nodes.map((node) => {
+  return nodes.map(node => {
     if (node.type === 'AssignmentExpression' &&
        node.left.type === 'MemberExpression') {
       return b.assignmentExpression(
@@ -553,8 +551,8 @@ function mapArgumentsWithExpansion(nodes, meta) {
   const statements = [];
 
   // find expansion index
-  const expansionIndex = findIndex(nodes, (node) => node.constructor.name === 'Expansion' || node.splat === true);
-  const isSplat = any(nodes, (node) => node.splat === true);
+  const expansionIndex = findIndex(nodes, node => node.constructor.name === 'Expansion' || node.splat === true);
+  const isSplat = any(nodes, node => node.splat === true);
 
   // separate head[] from tail[], omit the index.
   const head = nodes.slice(0, expansionIndex);
@@ -570,7 +568,7 @@ function mapArgumentsWithExpansion(nodes, meta) {
   // statements
 
   // build head[] statements
-  head.forEach((node, index)=>{
+  head.forEach((node, index) => {
     let argument;
     if (node.splat === true) {
       argument = mapSplatArgument(head.length, tail.length);
@@ -696,16 +694,16 @@ function mapFunction(node, meta) {
   // some plumbing to map Expansions to JavaScript, also we don't
   // want to rely on the coffeescript parser for this as the output
   // is quite weird/ugly
-  const hasExpansion = any(node.params, (param, index) => {
+  const hasExpansion = any(node.params, (param, index) =>
     // if the last argument isn't a splat or expansion we needn't worry
     // To spell it out the logic here is:
     // If this isn't the last argument, and
     // the argument is either an expansion or a splat
     // then we return true
-    return (index < (node.params.length - 1) &&
-            (param.constructor.name === 'Expansion' ||
-             param.splat === true ));
-  });
+    (index < (node.params.length - 1) &&
+     (param.constructor.name === 'Expansion' ||
+      param.splat === true))
+  );
 
   if (hasExpansion === false) {
     args = mapArguments(node.params, meta);
@@ -735,14 +733,14 @@ function mapFunction(node, meta) {
 }
 
 function getStatement(node) {
-  if(n.Statement.check(node.value) !== true && node.parent){
+  if (n.Statement.check(node.value) !== true && node.parent) {
     return getStatement(node.parent);
   }
   return node;
 }
 
 function inParentScope(path, filter) {
-  if(typeof filter !== 'function') {
+  if (typeof filter !== 'function') {
     throw new Error('filter argument must be function');
   }
   const statement = getStatement(path);
@@ -756,48 +754,53 @@ function inParentScope(path, filter) {
     throw new Error(`Can't recognize scope container of type ${scope.value.type}`);
   }
 
-  const indexInScope = findIndex(statementsInScope, (node)=> {
-    return statement.value === node
-  });
+  const indexInScope = findIndex(statementsInScope, node =>
+    statement.value === node
+  );
 
   const statements = statementsInScope.slice(0, indexInScope).filter(filter);
   const scopeStatement = getStatement(scope);
 
-  if(n.Program.check(scope.value)) {
+  if (n.Program.check(scope.value)) {
     return statements;
-  } else {
-    return inParentScope(scope.parent, filter).concat([scopeStatement].filter(_s => _s !== null).map(_s => _s.value).filter(filter)).concat(statements);
   }
+  return inParentScope(scope.parent, filter).concat(
+    [scopeStatement]
+      .filter(_s => _s !== null)
+      .map(_s => _s.value)
+      .filter(filter)
+  ).concat(statements);
 }
 
 function insertVariableDeclarations(ast) {
   jsc(ast)
-  .find(jsc.AssignmentExpression, (node)=> {
-    return n.MemberExpression.check(node.left) !== true;
-  })
-  .filter((path) => {
-    //const assignmentCount = jsc(path.value)
+  .find(jsc.AssignmentExpression, node =>
+    n.MemberExpression.check(node.left) !== true
+  )
+  .filter(path => {
+    // const assignmentCount = jsc(path.value)
     // .closest(jsc.AssignmentExpression, {left: path.value.left }).nodes().length;
 
-    const shadowedVariables = inParentScope(path, (node)=> {
+    const shadowedVariables = inParentScope(path, node => {
       if (n.VariableDeclaration.check(node)) {
-        return findIndex(node.declarations, {id: {type: 'Identifier', name: path.value.left.name}}) > -1
+        return findIndex(node.declarations, {id: {type: 'Identifier', name: path.value.left.name}}) > -1;
       }
 
       if (n.ExpressionStatement.check(node)) {
-        if((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
-           findIndex(node.expression.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
-
+        if ((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
+            findIndex(node.expression.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
           return true;
         }
 
         if (n.AssignmentExpression.check(node.expression)) {
           if (node.expression.left.name === path.value.left.name) {
             return true;
-          } else if(n.FunctionExpression.check(node.expression.right) || n.ArrowFunctionExpression.check(node.expression.right)) {
+          } else if (n.FunctionExpression.check(node.expression.right) ||
+                     n.ArrowFunctionExpression.check(node.expression.right)) {
             if (findIndex(node.expression.right.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
               return true;
-            } else if(findIndex(node.expression.right.params, {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {
+            } else if (findIndex(node.expression.right.params,
+                                 {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {
               return true;
             }
           }
@@ -814,17 +817,17 @@ function insertVariableDeclarations(ast) {
 
     return shadowedVariables.length < 1;
   })
-  .forEach((path) => {
+  .forEach(path => {
     if (path.parent && path.parent.value.type === 'ExpressionStatement') {
-      jsc(path).replaceWith((_path)=> {
-        return b.variableDeclaration(
+      jsc(path).replaceWith(_path =>
+        b.variableDeclaration(
           'var',
           [b.variableDeclarator(
             _path.value.left,
             _path.value.right
           )]
-        );
-      });
+        )
+      );
     } else {
       let body = jsc(path).closestScope().nodes()[0].body;
       if (body.body !== undefined) {
@@ -867,7 +870,7 @@ function mapSwitchStatement(node, meta) {
 
   return b.switchStatement(
     mapExpression(node.subject, meta),
-    cases.map((expr) => mapSwitchCase(expr, meta))
+    cases.map(expr => mapSwitchCase(expr, meta))
   );
 }
 
@@ -958,7 +961,7 @@ function mapSplat(node, meta) {
 }
 
 function addReturnStatementsToSwitch(node) {
-  node.cases = node.cases.map((switchCase)=> {
+  node.cases = node.cases.map(switchCase => {
     switchCase.consequent = lastReturnStatement(switchCase.consequent);
     return switchCase;
   });
@@ -966,7 +969,7 @@ function addReturnStatementsToSwitch(node) {
 }
 
 function addBreakStatementsToSwitch(node) {
-  node.cases = node.cases.map((switchCase)=> {
+  node.cases = node.cases.map(switchCase => {
     if (switchCase.test !== null) {
       switchCase.consequent = lastBreakStatement(switchCase.consequent);
     }
@@ -1025,7 +1028,7 @@ function mapComment(node) {
 function mapWhileLoop(node, meta) {
   return b.whileStatement(
     mapExpression(node.condition),
-    mapBlockStatement(node.body, meta))
+    mapBlockStatement(node.body, meta));
 }
 
 function mapExpression(node, meta) {
@@ -1130,7 +1133,7 @@ function mapObjectPatternItem(node, meta) {
 }
 
 function mapObjectPattern(nodes, meta) {
-  return b.objectPattern(nodes.map((node) => {
+  return b.objectPattern(nodes.map(node => {
     const {operatorToken} = node;
     let prop;
     prop = b.property(
@@ -1147,7 +1150,7 @@ function mapObjectPattern(nodes, meta) {
 }
 
 function mapArrayPattern(node, meta) {
-  return b.arrayPattern(node.objects.map((prop)=> {
+  return b.arrayPattern(node.objects.map(prop => {
     const type = prop.base.constructor.name;
     if (type === 'Literal') {
       return mapLiteral(prop, meta);
@@ -1172,30 +1175,30 @@ function mapAssignmentPattern(node, meta) {
   return mapExpression(node, meta);
 }
 
-function mapAssignmentLeftHand(node, meta) {
-  const type = node.constructor.name;
-  if (type === 'Value') {
-    return mapAssignmentPattern(node.base, meta);
-  }
-  return mapExpression(node, meta);
-}
+// function mapAssignmentLeftHand(node, meta) {
+//   const type = node.constructor.name;
+//   if (type === 'Value') {
+//     return mapAssignmentPattern(node.base, meta);
+//   }
+//   return mapExpression(node, meta);
+// }
 
-function mapVariableDeclaration(node, meta) {
-  const identifierName = node.variable.base.value;
-  meta[identifierName] = true;
-  return b.variableDeclaration('var', [
-    b.variableDeclarator(
-      mapAssignmentLeftHand(node.variable, meta),
-      mapExpression(node.value, meta))]);
-}
+// function mapVariableDeclaration(node, meta) {
+//   const identifierName = node.variable.base.value;
+//   meta[identifierName] = true;
+//   return b.variableDeclaration('var', [
+//     b.variableDeclarator(
+//       mapAssignmentLeftHand(node.variable, meta),
+//       mapExpression(node.value, meta))]);
+// }
 
 function parse(coffeeSource) {
   const ast = coffeeAst(coffeeSource);
   const scope = new Scope(null, parse, null, []);
   const meta = {scope, indent: ' '};
 
-  const comments = ast.expressions.filter( expr => expr.comment );
-  ast.expressions = ast.expressions.filter( expr => !expr.comment );
+  const comments = ast.expressions.filter(expr => expr.comment);
+  ast.expressions = ast.expressions.filter(expr => !expr.comment);
 
   const program = b.program(mapBlockStatements(ast, meta));
 
@@ -1210,8 +1213,8 @@ export function compile(coffeeSource, opts) {
   opts = opts || {tabWidth: 2, quote: 'double'};
   const _compile = compose(
     // hack because of double semicolon
-    (source) => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
-    (code) => recast.print(code, opts),
+    source => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
+    code => recast.print(code, opts),
     insertVariableDeclarations,
     parse);
 
