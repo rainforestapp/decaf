@@ -10,7 +10,11 @@
     "valid-jsdoc": 2,
     "no-use-before-define": 0,
     "comma-dangle": [2, "always-multiline"],
-    "id-length": [2, {"exceptions": ["_", "$"]}]
+    "id-length": [2, {"exceptions": ["_", "$"]}],
+    "object-curly-spacing": 0,
+    "max-len": [2, 120, 2],
+    "no-param-reassign": 0,
+    "arrow-parens": [2, "as-needed"]
   },
   "plugins": [
     "babel"
