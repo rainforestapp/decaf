@@ -5,28 +5,28 @@ function compile(source) {
   return _compile(source, {tabWidth: 2, quote: 'double'});
 }
 
-describe('Values', ()=> {
-  it('strings', ()=> {
+describe('Values', () => {
+  it('strings', () => {
     expect(compile('"yoyoyo"')).toBe('"yoyoyo";');
   });
 
-  it('numbers', ()=> {
+  it('numbers', () => {
     expect(compile('123')).toBe('123;');
   });
 
-  it('floats', ()=> {
+  it('floats', () => {
     expect(compile('123.12353443')).toBe('123.12353443;');
   });
 
-  it('regular expressions', ()=> {
+  it('regular expressions', () => {
     expect(compile('/gorigori/gi')).toBe('/gorigori/gi;');
   });
 
-  it('NaN', ()=> {
+  it('NaN', () => {
     expect(compile('NaN')).toBe('NaN;');
   });
 
-  it('booleans', ()=> {
+  it('booleans', () => {
     expect(compile('true')).toBe('true;');
     expect(compile('false')).toBe('false;');
     expect(compile('yes')).toBe('true;');
@@ -35,58 +35,58 @@ describe('Values', ()=> {
     expect(compile('no')).toBe('false;');
   });
 
-  it('arrays', ()=> {
+  it('arrays', () => {
     expect(compile('[1, 2, 3]')).toBe('[1, 2, 3];');
   });
 
-  it('objects', ()=> {
+  it('objects', () => {
     expect(compile('a: 213, b: "321"')).toBe('({\n  a: 213,\n  b: "321"\n});');
     expect(compile('false')).toBe('false;');
   });
 
 
-  it('undefined', ()=> {
+  it('undefined', () => {
     expect(compile('undefined')).toBe('undefined;');
   });
 
-  it('null', ()=> {
+  it('null', () => {
     expect(compile('null')).toBe('null;');
   });
 });
 
-//describe('Comments', ()=> {
-//  it('multiline comments in Program', ()=> {
-//    const example =
-//`###
-//Hello I am a comment
-//###`;
-//    const expected =
-//`/*
-//Hello I am a comment
-//*/
-//`
-//    expect(compile(example)).toBe(expected);
-//  });
+// describe('Comments', () => {
+//   it('multiline comments in Program', () => {
+//     const example =
+// `###
+// Hello I am a comment
+// ###`;
+//     const expected =
+// `/*
+// Hello I am a comment
+// */
+// `;
+//     expect(compile(example)).toBe(expected);
+//   });
 //
-//  it.only('nested multiline comments', ()=> {
-//    const example =
-//`fun = () ->
+//   it.only('nested multiline comments', () => {
+//     const example =
+// `fun = () ->
 //  console.log('yoyoyo');
 //  ###
 //  Hello I am a comment
 //  ###`;
-//    const expected =
-//`var fun = function() {
+//     const expected =
+// `var fun = function() {
 //  /*
 //  Hello I am a comment
 //  */
-//}`
-//    expect(compile(example)).toBe(expected);
-//  });
-//});
+// }`;
+//     expect(compile(example)).toBe(expected);
+//   });
+// });
 
 describe('Unary Expressions', () => {
-  it('correctly converts', ()=> {
+  it('correctly converts', () => {
     expect(compile('-boom')).toBe('-boom;');
     expect(compile('+boom')).toBe('+boom;');
     expect(compile('+boom')).toBe('+boom;');
@@ -94,116 +94,117 @@ describe('Unary Expressions', () => {
     expect(compile('num--')).toBe('num--;');
     expect(compile('--num')).toBe('--num;');
     expect(compile('++num')).toBe('++num;');
-  })
+  });
 });
 
-describe('new Expressions', ()=> {
-  it('new FooBar', ()=> {
+describe('new Expressions', () => {
+  it('new FooBar', () => {
     expect(compile('new FooBar')).toBe('new FooBar();');
   });
 
-  it(`new FooBar('bobo')`, ()=> {
+  it(`new FooBar('bobo')`, () => {
     expect(compile(`new FooBar('bobo')`)).toBe(`new FooBar("bobo");`);
   });
 
 
-  it('bom = new FooBar', ()=> {
+  it('bom = new FooBar', () => {
     expect(compile('bom = new FooBar')).toBe('var bom = new FooBar();');
   });
 
-  it('bom = new FooBar(1,2,boom())', ()=> {
+  it('bom = new FooBar(1,2,boom())', () => {
     expect(compile('bom = new FooBar(1,2,boom())')).toBe('var bom = new FooBar(1, 2, boom());');
   });
 });
 
-describe('Existential Operator', ()=> {
-  it('foo?', ()=> {
+describe('Existential Operator', () => {
+  it('foo?', () => {
     const example = 'foo?';
     const expected = 'typeof foo !== "undefined" && foo !== null;';
     expect(compile(example)).toBe(expected);
   });
 
-  it('foo?.bar?', ()=> {
+  it('foo?.bar?', () => {
     const example = 'foo?.bar?';
     const expected = '(typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;';
     expect(compile(example)).toBe(expected);
   });
 
-  it('yo = foo?.bar?', ()=> {
+  it('yo = foo?.bar?', () => {
     const example = 'yo = foo?.bar?';
     const expected = `var yo = (typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('yo = foo?.bar?()', ()=> {
+  it('yo = foo?.bar?()', () => {
     const example = 'yo = a?.b?.c?()';
     const expected =
 `var ref;
-var yo = typeof a !== "undefined" && a !== null ? (ref = a.b) != null ? typeof ref.c === "function" ? ref.c() : void 0 : void 0 : void 0;`;
+var yo = typeof a !== "undefined" && a !== null ? (ref = a.b) != null ? \
+typeof ref.c === "function" ? ref.c() : void 0 : void 0 : void 0;`;
     expect(compile(example)).toBe(expected);
   });
 });
 
-describe('Boolean Expression', ()=> {
-  it('a > 123', ()=> {
+describe('Boolean Expression', () => {
+  it('a > 123', () => {
     expect(compile('a > 123')).toBe('a > 123;');
   });
 
-  it('a < 123', ()=> {
+  it('a < 123', () => {
     expect(compile('a < 123')).toBe('a < 123;');
   });
 
-  it('a <= 123', ()=> {
+  it('a <= 123', () => {
     expect(compile('a <= 123')).toBe('a <= 123;');
   });
 
-  it('a >= 123', ()=> {
+  it('a >= 123', () => {
     expect(compile('a >= 123')).toBe('a >= 123;');
   });
 
-  it('a || 123', ()=> {
+  it('a || 123', () => {
     expect(compile('a || 123')).toBe('a || 123;');
   });
 
-  it('a or 123', ()=> {
+  it('a or 123', () => {
     expect(compile('a or 123')).toBe('a || 123;');
   });
 
-  it('a and b', ()=> {
+  it('a and b', () => {
     expect(compile('a and b')).toBe('a && b;');
   });
 
-  it('!b', ()=> {
+  it('!b', () => {
     expect(compile('!b')).toBe('!b;');
   });
 
-  it('!!b', ()=> {
+  it('!!b', () => {
     expect(compile('!!b')).toBe('!!b;');
   });
 
-  it('!!!b', ()=> {
+  it('!!!b', () => {
     expect(compile('!!!b')).toBe('!!!b;');
   });
 
-  it(`'hello' in items`, ()=> {
+  it(`'hello' in items`, () => {
     expect(compile(`'hello' in items`)).toBe(`items.includes("hello");`);
   });
 });
 
-describe('embedded javascript', ()=> {
-  it('`var b = function(){ console.log(\'foobar\'); }`', ()=> {
+describe('embedded javascript', () => {
+  it('`var b = function(){ console.log(\'foobar\'); }`', () => {
     const example = '`var b = function(){ console.log(\'foobar\'); }`';
     const expected = 'var b = function(){ console.log(\'foobar\'); };';
     expect(compile(example)).toBe(expected);
   });
 });
 
-describe('assignment expressions', ()=>{
-  it('assigns strings', ()=> {
+describe('assignment expressions', () => {
+  it('assigns strings', () => {
     expect(compile('bam = "hello"')).toBe('var bam = "hello";');
   });
 
-  it(`foo = (one) -> one ||= 'one'`, ()=> {
+  it(`foo = (one) -> one ||= 'one'`, () => {
     const example = `foo = (one) -> one ||= 'one'`;
     const expected =
 `var foo = function(one) {
@@ -212,7 +213,7 @@ describe('assignment expressions', ()=>{
     expect(compile(example)).toBe(expected);
   });
 
-  it('a = b = c = (d) -> a + b + c + d', ()=> {
+  it('a = b = c = (d) -> a + b + c + d', () => {
     const example = `a = b = c = (d) -> a + b + c + d`;
     const expected =
 `var c;
@@ -220,11 +221,11 @@ var b;
 
 var a = b = c = function(d) {
   return a + b + c + d;
-};`
+};`;
     expect(compile(example)).toBe(expected);
-  })
+  });
 
-  it(`foo = (one) -> one ?= 'one'`, ()=> {
+  it(`foo = (one) -> one ?= 'one'`, () => {
     const example = `foo = (one) -> one ?= 'one'`;
     const expected =
 `var foo = function(one) {
@@ -233,7 +234,7 @@ var a = b = c = function(d) {
     expect(compile(example)).toBe(expected);
   });
 
-  it(`(one) -> one ?= 'one'`, ()=> {
+  it(`(one) -> one ?= 'one'`, () => {
     const example = `(one) -> one ?= 'one'`;
     const expected =
 `(function(one) {
@@ -243,7 +244,7 @@ var a = b = c = function(d) {
   });
 
 
-  it('shadowed assignments', ()=> {
+  it('shadowed assignments', () => {
     const example =
 `a = 'b'
 b = ->
@@ -265,7 +266,7 @@ var b = function() {
     expect(compile(example)).toBe(expected);
   });
 
-  it('variable declarations in return statements', ()=> {
+  it('variable declarations in return statements', () => {
     const example =
 `b = ->
   a = 123`;
@@ -277,7 +278,7 @@ var b = function() {
     expect(compile(example)).toBe(expected);
   });
 
-  it('hoists variable declarations in return statements at the top of the body', ()=> {
+  it('hoists variable declarations in return statements at the top of the body', () => {
     const example =
 `4 + b = ->
   c = 'booooo'
@@ -293,7 +294,7 @@ var b = function() {
     expect(compile(example)).toBe(expected);
   });
 
-  it(`doesn't declare variables twice`, ()=> {
+  it(`doesn't declare variables twice`, () => {
     const example =
 `bam = 'hello'
 bam = 'bye'`;
@@ -304,7 +305,7 @@ bam = "bye";`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('assigns objects', ()=> {
+  it('assigns objects', () => {
     const example = 'b = a: 1';
     const expected =
 `var b = {
@@ -313,7 +314,7 @@ bam = "bye";`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('assigns big objects', ()=> {
+  it('assigns big objects', () => {
     const example =
 `b =
   a: 1,
@@ -333,8 +334,8 @@ bam = "bye";`;
   });
 });
 
-describe('FunctionExpression', ()=> {
-  it('fn = (a,b) -> console.log a, b', ()=> {
+describe('FunctionExpression', () => {
+  it('fn = (a,b) -> console.log a, b', () => {
     const example = `fn = (a,b) -> console.log a, b`;
     const expected =
 `var fn = function(a, b) {
@@ -343,7 +344,7 @@ describe('FunctionExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (a,b) => console.log a, b', ()=> {
+  it('fn = (a,b) => console.log a, b', () => {
     const example = `fn = (a,b) => console.log a, b`;
     const expected =
 `var fn = (a, b) => {
@@ -352,7 +353,7 @@ describe('FunctionExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (a = 123, b) => console.log a, b', ()=> {
+  it('fn = (a = 123, b) => console.log a, b', () => {
     const example = `fn = (a = 123, b) => console.log a, b`;
     const expected =
 `var fn = (a = 123, b) => {
@@ -361,7 +362,7 @@ describe('FunctionExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (@a = 123, b) => console.log a, b', ()=> {
+  it('fn = (@a = 123, b) => console.log a, b', () => {
     const example = `fn = (@a = 123, b) => console.log a, b`;
     const expected =
 `var fn = (a = 123, b) => {
@@ -371,7 +372,7 @@ describe('FunctionExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (@a = 123, b) -> console.log a, b', ()=> {
+  it('fn = (@a = 123, b) -> console.log a, b', () => {
     const example = `fn = (@a = 123, b) -> console.log a, b`;
     const expected =
 `var fn = function(a = 123, b) {
@@ -382,14 +383,14 @@ describe('FunctionExpression', ()=> {
   });
 });
 
-describe('ClassExpression', ()=> {
-  it('renders a simple class expression', ()=> {
+describe('ClassExpression', () => {
+  it('renders a simple class expression', () => {
     const example = `class A`;
     const expected = `class A {}`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('renders a simple class expression with a method', ()=> {
+  it('renders a simple class expression with a method', () => {
     const example =
 `class A
   b: -> bom + 123
@@ -403,7 +404,7 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('renders an assignment with a simple class expression with a method', ()=> {
+  it('renders an assignment with a simple class expression with a method', () => {
     const example =
 `aClass = class A
   b: -> bom + 123
@@ -417,7 +418,7 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('binds fat arrow class methods in the constructor', ()=> {
+  it('binds fat arrow class methods in the constructor', () => {
     const example =
 `aClass = class A
   b: => bom + 123
@@ -435,7 +436,7 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('extends a class with the extend keyword', ()=> {
+  it('extends a class with the extend keyword', () => {
     const example =
 `class A extends B
   b: -> bom + 123
@@ -449,7 +450,7 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('assigns an extended class to a variable', ()=> {
+  it('assigns an extended class to a variable', () => {
     const example =
 `a = class A extends B
   b: -> bom + 123
@@ -463,7 +464,7 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps @ to this', ()=> {
+  it('maps @ to this', () => {
     const example =
 `class A extends B
   b: -> @bom 1, 2, 'hey'`;
@@ -477,8 +478,8 @@ describe('ClassExpression', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  describe('super', ()=> {
-    it(`maps super 1 to 1 if in constructor`, ()=> {
+  describe('super', () => {
+    it(`maps super 1 to 1 if in constructor`, () => {
       const example =
 `class A
   constructor: ->
@@ -493,7 +494,7 @@ describe('ClassExpression', ()=> {
       expect(compile(example)).toBe(expected);
     });
 
-    it(`maps to super.<methodName> if not in constructor`, ()=> {
+    it(`maps to super.<methodName> if not in constructor`, () => {
       const example =
 `class A
   b: ->
@@ -508,7 +509,7 @@ describe('ClassExpression', ()=> {
       expect(compile(example)).toBe(expected);
     });
 
-    it(`maps to super.<methodName> if not in constructor in a bound method`, ()=> {
+    it(`maps to super.<methodName> if not in constructor in a bound method`, () => {
       const example =
 `class A
   b: =>
@@ -528,23 +529,24 @@ describe('ClassExpression', ()=> {
     });
   });
 
-  describe('class methods can be called directly', ()=> {
-    it(`Foo::bar()`, ()=> {
+  describe('class methods can be called directly', () => {
+    it(`Foo::bar()`, () => {
       expect(compile(`Foo::bar()`)).toBe(`Foo.prototype.bar();`);
     });
 
-    it(`Foo::bar::foo()`, ()=> {
+    it(`Foo::bar::foo()`, () => {
       expect(compile(`Foo::bar::foo()`)).toBe(`Foo.prototype.bar.prototype.foo();`);
     });
 
-    it(`Foo?::bar::foo()`, ()=> {
-      expect(compile(`Foo?::bar()`)).toNotBe(`((typeof Foo !== "undefined" && Foo !== null ? Foo.prototype.bar.prototype.foo : void 0))();`);
+    it(`Foo?::bar::foo()`, () => {
+      expect(compile(`Foo?::bar()`)).toNotBe(
+        `((typeof Foo !== "undefined" && Foo !== null ? Foo.prototype.bar.prototype.foo : void 0))();`);
     });
   });
 });
 
-describe('Destructuring', ()=> {
-  it('maps simple object destructuring assignments', ()=> {
+describe('Destructuring', () => {
+  it('maps simple object destructuring assignments', () => {
     const example = `{a, b} = abam`;
     const expected =
 `var {
@@ -554,7 +556,7 @@ describe('Destructuring', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps deep object destructuring assignments', ()=> {
+  it('maps deep object destructuring assignments', () => {
     const example = `{a, b: {c: {d}}} = abam`;
     const expected =
 `var {
@@ -569,19 +571,19 @@ describe('Destructuring', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps simple array destructuring assignments', ()=> {
+  it('maps simple array destructuring assignments', () => {
     const example = `[a, b, c] = abam`;
     const expected = `var [a, b, c] = abam;`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps nested array destructuring assignments', ()=> {
+  it('maps nested array destructuring assignments', () => {
     const example = `[a, [b, [c]]] = abam`;
     const expected = `var [a, [b, [c]]] = abam;`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps object destructuring assignment inside array destructuring assignment', ()=> {
+  it('maps object destructuring assignment inside array destructuring assignment', () => {
     const example = `[{a: {b: 123}}, b] = bam`;
     const expected =
 `var [{
@@ -592,7 +594,7 @@ describe('Destructuring', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps array destructuring assignment inside object destructuring assignment', ()=> {
+  it('maps array destructuring assignment inside object destructuring assignment', () => {
     const example = `{a: [b, c]} = bam`;
     const expected =
 `var {
@@ -602,8 +604,8 @@ describe('Destructuring', ()=> {
   });
 });
 
-describe('conditional statements', ()=> {
-  it('maps simple if statement', ()=> {
+describe('conditional statements', () => {
+  it('maps simple if statement', () => {
     const example =
 `
 if explosion is true
@@ -614,7 +616,7 @@ if explosion is true
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps simple if else statement', ()=> {
+  it('maps simple if else statement', () => {
     const example =
 `
 if explosion is true
@@ -632,7 +634,7 @@ else
   });
 
 
-  it('maps nested if statements ', ()=> {
+  it('maps nested if statements ', () => {
     const example =
 `
 if explosion is true
@@ -646,7 +648,7 @@ if explosion is true
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps if statements with multiple conditions ', ()=> {
+  it('maps if statements with multiple conditions ', () => {
     const example =
 `if explosion is true and boom is false and other
   alert 'BOOM'
@@ -655,7 +657,7 @@ if explosion is true
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps if statements with else statements ', ()=> {
+  it('maps if statements with else statements ', () => {
     const example =
 `
 if explosion is true
@@ -680,7 +682,7 @@ else
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps unless statements', ()=> {
+  it('maps unless statements', () => {
     const example =
 `unless explosion is false
   alert 'BOOM'`;
@@ -688,21 +690,21 @@ else
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps reverse if statements', ()=> {
+  it('maps reverse if statements', () => {
     const example = `console.log 'boom' if condition is true`;
     const expected = `(condition === true ? console.log("boom") : undefined);`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps long reverse if statements', ()=> {
+  it('maps long reverse if statements', () => {
     const example = `console.log 'boom' if condition is true and bam isnt false`;
     const expected = `(condition === true && bam !== false ? console.log("boom") : undefined);`;
     expect(compile(example)).toBe(expected);
   });
 });
 
-describe('try catch statements', ()=> {
-  it('maps a simple try catch block', ()=> {
+describe('try catch statements', () => {
+  it('maps a simple try catch block', () => {
     const example =
 `try
   boom()
@@ -718,7 +720,7 @@ catch err
     expect(compile(example)).toBe(expected);
   });
 
-  it('maps a try catch finally block', ()=> {
+  it('maps a try catch finally block', () => {
     const example =
 `try
   boom()
@@ -739,8 +741,8 @@ finally
   });
 });
 
-describe('switch blocks', ()=> {
-  it('prints a simple switch statement', ()=> {
+describe('switch blocks', () => {
+  it('prints a simple switch statement', () => {
     const example =
 `switch word
   when 'hello' then say 'hello'
@@ -761,8 +763,8 @@ default:
   });
 });
 
-describe('switch expressions', ()=> {
-  it('prints a simple switch statement with return statements', ()=> {
+describe('switch expressions', () => {
+  it('prints a simple switch statement with return statements', () => {
     const example =
 `thing = switch word
   when 'hello'
@@ -786,8 +788,8 @@ describe('switch expressions', ()=> {
   });
 });
 
-describe('comprehensions', ()=> {
-  it('simple for loop', ()=> {
+describe('comprehensions', () => {
+  it('simple for loop', () => {
     const example =
 `for food in ['toast', 'cheese', 'wine']
   eat food`;
@@ -798,7 +800,7 @@ describe('comprehensions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('for comprehension assigned with assignment', ()=> {
+  it('for comprehension assigned with assignment', () => {
     const example =
 `res = for food in ['toast', 'cheese', 'wine']
   eat food`;
@@ -809,7 +811,7 @@ describe('comprehensions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('bam = (x for x in [0...10] by 2)', ()=> {
+  it('bam = (x for x in [0...10] by 2)', () => {
     const example = `bam = (x for x in [0...10] by 2)`;
     const expected =
 `var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
@@ -820,7 +822,7 @@ describe('comprehensions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('bam = (x for x in [0...10] by 4)', ()=> {
+  it('bam = (x for x in [0...10] by 4)', () => {
     const example = `bam = (x for x in [0...10] by 4)`;
     const expected =
 `var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
@@ -831,7 +833,7 @@ describe('comprehensions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('bam = (x for x in [0...10] by num())', ()=> {
+  it('bam = (x for x in [0...10] by num())', () => {
     const example = `bam = (x for x in [0...10] by num())`;
     const expected =
 `var bam = ([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].filter((_, _i) => {
@@ -843,22 +845,22 @@ describe('comprehensions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it(`"b" of a`, ()=> {
+  it(`"b" of a`, () => {
     const example = `"b" of a`;
     const expected = `"b" in a;`;
-    expect(compile(example)).toBe(expected)
+    expect(compile(example)).toBe(expected);
   });
 });
 
-describe('ranges', ()=> {
-  it('simple ranges', ()=> {
+describe('ranges', () => {
+  it('simple ranges', () => {
     const example = `[1...10]`;
     const expected = `[1, 2, 3, 4, 5, 6, 7, 8, 9];`;
 
     expect(compile(example)).toBe(expected);
   });
 
-  it('uses coffeescript parser for generated ranges', ()=> {
+  it('uses coffeescript parser for generated ranges', () => {
     const example = `[1...bom]`;
     const expected =
 `(function() {
@@ -875,28 +877,28 @@ describe('ranges', ()=> {
   });
 });
 
-describe('splats', ()=> {
-  it('a = c(b...)', ()=> {
+describe('splats', () => {
+  it('a = c(b...)', () => {
     const example = `a = c(b...)`;
     const expected = `var a = c(...b);`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (b...)->', ()=> {
+  it('fn = (b...)->', () => {
     const example = `fn = (b...) ->`;
     const expected = `var fn = function(...b) {};`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('a = [b...]', ()=> {
+  it('a = [b...]', () => {
     const example = `a = [b...]`;
     const expected = `var a = [...b];`;
     expect(compile(example)).toBe(expected);
   });
 });
 
-describe('argument splats', () =>{
-  it('fn = (first, ..., beforeLast, last) ->', ()=> {
+describe('argument splats', () => {
+  it('fn = (first, ..., beforeLast, last) ->', () => {
     const example = `fn = (first, ..., beforeLast, last) ->`;
     const expected =
 `var fn = function() {
@@ -907,7 +909,7 @@ describe('argument splats', () =>{
     expect(compile(example)).toBe(expected);
   });
 
-  it(`fn = (@first = 'sobo', ..., beforeLast, last = bom()) ->`, ()=> {
+  it(`fn = (@first = 'sobo', ..., beforeLast, last = bom()) ->`, () => {
     const example = `fn = (@first = 'sobo', ..., @beforeLast = 'boom', last = bom()) ->`;
     const expected =
 `var fn = function() {
@@ -929,7 +931,7 @@ describe('argument splats', () =>{
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (first, rest..., last) ->', ()=> {
+  it('fn = (first, rest..., last) ->', () => {
     const example = `fn = (first, rest..., last) ->`;
     const expected =
 `var fn = function() {
@@ -940,7 +942,7 @@ describe('argument splats', () =>{
     expect(compile(example)).toBe(expected);
   });
 
-  it('fn = (first, @rest..., last) ->', ()=> {
+  it('fn = (first, @rest..., last) ->', () => {
     const example = `fn = (first, @rest..., last) ->`;
     const expected =
 `var fn = function() {
@@ -952,40 +954,40 @@ describe('argument splats', () =>{
   });
 });
 
-describe('slices', ()=> {
-  it('bam[1...10]', ()=> {
+describe('slices', () => {
+  it('bam[1...10]', () => {
     const example = `bam[1...10]`;
     const expected = `bam.slice(1, 10);`;
     expect(compile(example)).toBe(expected);
   });
 
-  it('bam[a()...b()]', ()=> {
+  it('bam[a()...b()]', () => {
     const example = `bam[a()...b()]`;
     const expected = `bam.slice(a(), b());`;
     expect(compile(example)).toBe(expected);
   });
 
-  it(`bam[a['foobar'].bom...100]`, ()=> {
+  it(`bam[a['foobar'].bom...100]`, () => {
     const example = `bam[a["foobar"].bom...100]`;
     const expected = `bam.slice(a["foobar"].bom, 100);`;
     expect(compile(example)).toBe(expected);
   });
 });
 
-describe('conditional expressions', ()=> {
-  it(`foo = if bar is true then 12345 else 54321`, ()=> {
+describe('conditional expressions', () => {
+  it(`foo = if bar is true then 12345 else 54321`, () => {
     const example = `foo = if bar is true then 12345 else 54321`;
     const expected = `var foo = (bar === true ? 12345 : 54321);`;
     expect(compile(example)).toBe(expected);
   });
 
-  it(`console.log "boom" if "a" of b`, ()=> {
+  it(`console.log "boom" if "a" of b`, () => {
     const example = `console.log "boom" if "a" of b`;
-    const expected = `("a" in b ? console.log("boom") : undefined);`
+    const expected = `("a" in b ? console.log("boom") : undefined);`;
     expect(compile(example)).toBe(expected);
-  })
+  });
 
-  it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom'`, ()=> {
+  it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom'`, () => {
     const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom'`;
     const expected =
 `var foo = (() => {
@@ -998,7 +1000,7 @@ describe('conditional expressions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`, ()=> {
+  it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`, () => {
     const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`;
     const expected =
 `var foo = (() => {
@@ -1013,7 +1015,7 @@ describe('conditional expressions', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it(`nested if expressions`, ()=> {
+  it(`nested if expressions`, () => {
     const example =
 `b =
   if a is 'loo'
@@ -1035,8 +1037,8 @@ describe('conditional expressions', ()=> {
   });
 });
 
-describe('return statements', ()=> {
-  it('switch expression', ()=> {
+describe('return statements', () => {
+  it('switch expression', () => {
     const example =
 `a = switch a
   when 'b' then 'c'
@@ -1056,7 +1058,7 @@ describe('return statements', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('switch expression inside conditional', ()=> {
+  it('switch expression inside conditional', () => {
     const example =
 `a =
   unless b is true
@@ -1078,7 +1080,7 @@ describe('return statements', ()=> {
     expect(compile(example)).toBe(expected);
   });
 
-  it('switch statement inside conditional (not last statement)', ()=> {
+  it('switch statement inside conditional (not last statement)', () => {
     const example =
 `a =
   unless b is true
@@ -1108,21 +1110,21 @@ describe('return statements', ()=> {
   });
 });
 
-describe('while loops', ()=> {
-  it(`console.log 'boom' while i++ < 10`, ()=> {
-    const example = `console.log 'boom' while i++ < 10`
+describe('while loops', () => {
+  it(`console.log 'boom' while i++ < 10`, () => {
+    const example = `console.log 'boom' while i++ < 10`;
     const expected =
 `while (i++ < 10) {
   console.log("boom");
-}`
+}`;
 
     expect(compile(example)).toBe(expected);
   });
 });
 
-describe('large code examples', ()=> {
-  it('code example', ()=> {
-    const example = 
+describe('large code examples', () => {
+  it('code example', () => {
+    const example =
 String.raw`$ = require 'jquery'
 
 ###
