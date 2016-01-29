@@ -7,50 +7,50 @@ function compile(source) {
 
 describe('Values', () => {
   it('strings', () => {
-    expect(compile('"yoyoyo"')).toBe('"yoyoyo";');
+    expect(compile('"yoyoyo"')).toEqual('"yoyoyo";');
   });
 
   it('numbers', () => {
-    expect(compile('123')).toBe('123;');
+    expect(compile('123')).toEqual('123;');
   });
 
   it('floats', () => {
-    expect(compile('123.12353443')).toBe('123.12353443;');
+    expect(compile('123.12353443')).toEqual('123.12353443;');
   });
 
   it('regular expressions', () => {
-    expect(compile('/gorigori/gi')).toBe('/gorigori/gi;');
+    expect(compile('/gorigori/gi')).toEqual('/gorigori/gi;');
   });
 
   it('NaN', () => {
-    expect(compile('NaN')).toBe('NaN;');
+    expect(compile('NaN')).toEqual('NaN;');
   });
 
   it('booleans', () => {
-    expect(compile('true')).toBe('true;');
-    expect(compile('false')).toBe('false;');
-    expect(compile('yes')).toBe('true;');
-    expect(compile('!!yes')).toBe('!!true;');
-    expect(compile('!!!yes')).toBe('!!!true;');
-    expect(compile('no')).toBe('false;');
+    expect(compile('true')).toEqual('true;');
+    expect(compile('false')).toEqual('false;');
+    expect(compile('yes')).toEqual('true;');
+    expect(compile('!!yes')).toEqual('!!true;');
+    expect(compile('!!!yes')).toEqual('!!!true;');
+    expect(compile('no')).toEqual('false;');
   });
 
   it('arrays', () => {
-    expect(compile('[1, 2, 3]')).toBe('[1, 2, 3];');
+    expect(compile('[1, 2, 3]')).toEqual('[1, 2, 3];');
   });
 
   it('objects', () => {
-    expect(compile('a: 213, b: "321"')).toBe('({\n  a: 213,\n  b: "321"\n});');
-    expect(compile('false')).toBe('false;');
+    expect(compile('a: 213, b: "321"')).toEqual('({\n  a: 213,\n  b: "321"\n});');
+    expect(compile('false')).toEqual('false;');
   });
 
 
   it('undefined', () => {
-    expect(compile('undefined')).toBe('undefined;');
+    expect(compile('undefined')).toEqual('undefined;');
   });
 
   it('null', () => {
-    expect(compile('null')).toBe('null;');
+    expect(compile('null')).toEqual('null;');
   });
 });
 
@@ -65,7 +65,7 @@ describe('Values', () => {
 // Hello I am a comment
 // */
 // `;
-//     expect(compile(example)).toBe(expected);
+//     expect(compile(example)).toEqual(expected);
 //   });
 //
 //   it.only('nested multiline comments', () => {
@@ -81,38 +81,38 @@ describe('Values', () => {
 //  Hello I am a comment
 //  */
 // }`;
-//     expect(compile(example)).toBe(expected);
+//     expect(compile(example)).toEqual(expected);
 //   });
 // });
 
 describe('Unary Expressions', () => {
   it('correctly converts', () => {
-    expect(compile('-boom')).toBe('-boom;');
-    expect(compile('+boom')).toBe('+boom;');
-    expect(compile('+boom')).toBe('+boom;');
-    expect(compile('num++')).toBe('num++;');
-    expect(compile('num--')).toBe('num--;');
-    expect(compile('--num')).toBe('--num;');
-    expect(compile('++num')).toBe('++num;');
+    expect(compile('-boom')).toEqual('-boom;');
+    expect(compile('+boom')).toEqual('+boom;');
+    expect(compile('+boom')).toEqual('+boom;');
+    expect(compile('num++')).toEqual('num++;');
+    expect(compile('num--')).toEqual('num--;');
+    expect(compile('--num')).toEqual('--num;');
+    expect(compile('++num')).toEqual('++num;');
   });
 });
 
 describe('new Expressions', () => {
   it('new FooBar', () => {
-    expect(compile('new FooBar')).toBe('new FooBar();');
+    expect(compile('new FooBar')).toEqual('new FooBar();');
   });
 
   it(`new FooBar('bobo')`, () => {
-    expect(compile(`new FooBar('bobo')`)).toBe(`new FooBar("bobo");`);
+    expect(compile(`new FooBar('bobo')`)).toEqual(`new FooBar("bobo");`);
   });
 
 
   it('bom = new FooBar', () => {
-    expect(compile('bom = new FooBar')).toBe('var bom = new FooBar();');
+    expect(compile('bom = new FooBar')).toEqual('var bom = new FooBar();');
   });
 
   it('bom = new FooBar(1,2,boom())', () => {
-    expect(compile('bom = new FooBar(1,2,boom())')).toBe('var bom = new FooBar(1, 2, boom());');
+    expect(compile('bom = new FooBar(1,2,boom())')).toEqual('var bom = new FooBar(1, 2, boom());');
   });
 });
 
@@ -120,19 +120,19 @@ describe('Existential Operator', () => {
   it('foo?', () => {
     const example = 'foo?';
     const expected = 'typeof foo !== "undefined" && foo !== null;';
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('foo?.bar?', () => {
     const example = 'foo?.bar?';
     const expected = '(typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;';
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('yo = foo?.bar?', () => {
     const example = 'yo = foo?.bar?';
     const expected = `var yo = (typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('yo = foo?.bar?()', () => {
@@ -141,53 +141,53 @@ describe('Existential Operator', () => {
 `var ref;
 var yo = typeof a !== "undefined" && a !== null ? (ref = a.b) != null ? \
 typeof ref.c === "function" ? ref.c() : void 0 : void 0 : void 0;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
 describe('Boolean Expression', () => {
   it('a > 123', () => {
-    expect(compile('a > 123')).toBe('a > 123;');
+    expect(compile('a > 123')).toEqual('a > 123;');
   });
 
   it('a < 123', () => {
-    expect(compile('a < 123')).toBe('a < 123;');
+    expect(compile('a < 123')).toEqual('a < 123;');
   });
 
   it('a <= 123', () => {
-    expect(compile('a <= 123')).toBe('a <= 123;');
+    expect(compile('a <= 123')).toEqual('a <= 123;');
   });
 
   it('a >= 123', () => {
-    expect(compile('a >= 123')).toBe('a >= 123;');
+    expect(compile('a >= 123')).toEqual('a >= 123;');
   });
 
   it('a || 123', () => {
-    expect(compile('a || 123')).toBe('a || 123;');
+    expect(compile('a || 123')).toEqual('a || 123;');
   });
 
   it('a or 123', () => {
-    expect(compile('a or 123')).toBe('a || 123;');
+    expect(compile('a or 123')).toEqual('a || 123;');
   });
 
   it('a and b', () => {
-    expect(compile('a and b')).toBe('a && b;');
+    expect(compile('a and b')).toEqual('a && b;');
   });
 
   it('!b', () => {
-    expect(compile('!b')).toBe('!b;');
+    expect(compile('!b')).toEqual('!b;');
   });
 
   it('!!b', () => {
-    expect(compile('!!b')).toBe('!!b;');
+    expect(compile('!!b')).toEqual('!!b;');
   });
 
   it('!!!b', () => {
-    expect(compile('!!!b')).toBe('!!!b;');
+    expect(compile('!!!b')).toEqual('!!!b;');
   });
 
   it(`'hello' in items`, () => {
-    expect(compile(`'hello' in items`)).toBe(`items.includes("hello");`);
+    expect(compile(`'hello' in items`)).toEqual(`items.includes("hello");`);
   });
 });
 
@@ -195,13 +195,13 @@ describe('embedded javascript', () => {
   it('`var b = function(){ console.log(\'foobar\'); }`', () => {
     const example = '`var b = function(){ console.log(\'foobar\'); }`';
     const expected = 'var b = function(){ console.log(\'foobar\'); };';
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
 describe('assignment expressions', () => {
   it('assigns strings', () => {
-    expect(compile('bam = "hello"')).toBe('var bam = "hello";');
+    expect(compile('bam = "hello"')).toEqual('var bam = "hello";');
   });
 
   it(`foo = (one) -> one ||= 'one'`, () => {
@@ -210,7 +210,7 @@ describe('assignment expressions', () => {
 `var foo = function(one) {
   return one || (one = "one");
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('a = b = c = (d) -> a + b + c + d', () => {
@@ -222,7 +222,7 @@ var b;
 var a = b = c = function(d) {
   return a + b + c + d;
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`foo = (one) -> one ?= 'one'`, () => {
@@ -231,7 +231,7 @@ var a = b = c = function(d) {
 `var foo = function(one) {
   return (one != null ? one : one = "one");
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`(one) -> one ?= 'one'`, () => {
@@ -240,7 +240,7 @@ var a = b = c = function(d) {
 `(function(one) {
   return (one != null ? one : one = "one");
 });`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
 
@@ -263,7 +263,7 @@ var b = function() {
     return b = a;
   };
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('variable declarations in return statements', () => {
@@ -275,7 +275,7 @@ var b = function() {
   var a;
   return a = 123;
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('hoists variable declarations in return statements at the top of the body', () => {
@@ -291,7 +291,7 @@ var b = function() {
   var c = "booooo";
   return a = 123;
 });`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`doesn't declare variables twice`, () => {
@@ -302,7 +302,7 @@ bam = 'bye'`;
     const expected =
 `var bam = "hello";
 bam = "bye";`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('assigns objects', () => {
@@ -311,7 +311,7 @@ bam = "bye";`;
 `var b = {
   a: 1
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('assigns big objects', () => {
@@ -330,7 +330,7 @@ bam = "bye";`;
     b: 3
   }
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -341,7 +341,7 @@ describe('FunctionExpression', () => {
 `var fn = function(a, b) {
   return console.log(a, b);
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (a,b) => console.log a, b', () => {
@@ -350,7 +350,7 @@ describe('FunctionExpression', () => {
 `var fn = (a, b) => {
   return console.log(a, b);
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (a = 123, b) => console.log a, b', () => {
@@ -359,7 +359,7 @@ describe('FunctionExpression', () => {
 `var fn = (a = 123, b) => {
   return console.log(a, b);
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (@a = 123, b) => console.log a, b', () => {
@@ -369,7 +369,7 @@ describe('FunctionExpression', () => {
   this.a = a;
   return console.log(a, b);
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (@a = 123, b) -> console.log a, b', () => {
@@ -379,7 +379,7 @@ describe('FunctionExpression', () => {
   this.a = a;
   return console.log(a, b);
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -387,7 +387,7 @@ describe('ClassExpression', () => {
   it('renders a simple class expression', () => {
     const example = `class A`;
     const expected = `class A {}`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('renders a simple class expression with a method', () => {
@@ -401,7 +401,7 @@ describe('ClassExpression', () => {
     return bom + 123;
   }
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('renders an assignment with a simple class expression with a method', () => {
@@ -415,7 +415,7 @@ describe('ClassExpression', () => {
     return bom + 123;
   }
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('binds fat arrow class methods in the constructor', () => {
@@ -433,7 +433,7 @@ describe('ClassExpression', () => {
     return bom + 123;
   }
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('extends a class with the extend keyword', () => {
@@ -447,7 +447,7 @@ describe('ClassExpression', () => {
     return bom + 123;
   }
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('assigns an extended class to a variable', () => {
@@ -461,7 +461,7 @@ describe('ClassExpression', () => {
     return bom + 123;
   }
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps @ to this', () => {
@@ -475,7 +475,7 @@ describe('ClassExpression', () => {
     return this.bom(1, 2, "hey");
   }
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   describe('super', () => {
@@ -491,7 +491,7 @@ describe('ClassExpression', () => {
     return super("boom");
   }
 }`;
-      expect(compile(example)).toBe(expected);
+      expect(compile(example)).toEqual(expected);
     });
 
     it(`maps to super.<methodName> if not in constructor`, () => {
@@ -506,7 +506,7 @@ describe('ClassExpression', () => {
     return super.b("boom");
   }
 }`;
-      expect(compile(example)).toBe(expected);
+      expect(compile(example)).toEqual(expected);
     });
 
     it(`maps to super.<methodName> if not in constructor in a bound method`, () => {
@@ -525,17 +525,17 @@ describe('ClassExpression', () => {
     return super.b("boom");
   }
 }`;
-      expect(compile(example)).toBe(expected);
+      expect(compile(example)).toEqual(expected);
     });
   });
 
   describe('class methods can be called directly', () => {
     it(`Foo::bar()`, () => {
-      expect(compile(`Foo::bar()`)).toBe(`Foo.prototype.bar();`);
+      expect(compile(`Foo::bar()`)).toEqual(`Foo.prototype.bar();`);
     });
 
     it(`Foo::bar::foo()`, () => {
-      expect(compile(`Foo::bar::foo()`)).toBe(`Foo.prototype.bar.prototype.foo();`);
+      expect(compile(`Foo::bar::foo()`)).toEqual(`Foo.prototype.bar.prototype.foo();`);
     });
 
     it(`Foo?::bar::foo()`, () => {
@@ -553,7 +553,7 @@ describe('Destructuring', () => {
   a,
   b
 } = abam;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps deep object destructuring assignments', () => {
@@ -568,19 +568,19 @@ describe('Destructuring', () => {
     }
   }
 } = abam;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps simple array destructuring assignments', () => {
     const example = `[a, b, c] = abam`;
     const expected = `var [a, b, c] = abam;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps nested array destructuring assignments', () => {
     const example = `[a, [b, [c]]] = abam`;
     const expected = `var [a, [b, [c]]] = abam;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps object destructuring assignment inside array destructuring assignment', () => {
@@ -591,7 +591,7 @@ describe('Destructuring', () => {
     b: 123
   }
 }, b] = bam;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps array destructuring assignment inside object destructuring assignment', () => {
@@ -600,7 +600,7 @@ describe('Destructuring', () => {
 `var {
   a: [b, c]
 } = bam;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -613,7 +613,7 @@ if explosion is true
 `;
     const expected =
 `(explosion === true ? alert("BOOM") : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps simple if else statement', () => {
@@ -630,7 +630,7 @@ else
 } else if (bom) {
   alert("BAM");
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
 
@@ -645,7 +645,7 @@ if explosion is true
 `if (explosion === true) {
   (fake !== false ? alert("BOOM") : undefined);
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps if statements with multiple conditions ', () => {
@@ -654,7 +654,7 @@ if explosion is true
   alert 'BOOM'
 `;
     const expected = `(explosion === true && boom === false && other ? alert("BOOM") : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps if statements with else statements ', () => {
@@ -679,7 +679,7 @@ else
 } else {
   alert("NOTHING");
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps unless statements', () => {
@@ -687,19 +687,19 @@ else
 `unless explosion is false
   alert 'BOOM'`;
     const expected = `(explosion !== false ? alert("BOOM") : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps reverse if statements', () => {
     const example = `console.log 'boom' if condition is true`;
     const expected = `(condition === true ? console.log("boom") : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps long reverse if statements', () => {
     const example = `console.log 'boom' if condition is true and bam isnt false`;
     const expected = `(condition === true && bam !== false ? console.log("boom") : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -717,7 +717,7 @@ catch err
 } catch (err) {
   console.log("error");
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('maps a try catch finally block', () => {
@@ -737,7 +737,7 @@ finally
 } finally {
   say("finally");
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -759,7 +759,7 @@ case "bye":
 default:
   say("whatever");
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -784,7 +784,7 @@ describe('switch expressions', () => {
     return say("whatever");
   }
 })();`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -797,7 +797,7 @@ describe('comprehensions', () => {
 `for (let food in ["toast", "cheese", "wine"]) {
   eat(food);
 }`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('for comprehension assigned with assignment', () => {
@@ -808,7 +808,7 @@ describe('comprehensions', () => {
 `var res = ["toast", "cheese", "wine"].map(food => {
   return eat(food);
 });`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('bam = (x for x in [0...10] by 2)', () => {
@@ -819,7 +819,7 @@ describe('comprehensions', () => {
 }).map(x => {
   return x;
 }));`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('bam = (x for x in [0...10] by 4)', () => {
@@ -830,7 +830,7 @@ describe('comprehensions', () => {
 }).map(x => {
   return x;
 }));`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('bam = (x for x in [0...10] by num())', () => {
@@ -842,13 +842,13 @@ describe('comprehensions', () => {
   return x;
 }));`;
 
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`"b" of a`, () => {
     const example = `"b" of a`;
     const expected = `"b" in a;`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -857,7 +857,7 @@ describe('ranges', () => {
     const example = `[1...10]`;
     const expected = `[1, 2, 3, 4, 5, 6, 7, 8, 9];`;
 
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('uses coffeescript parser for generated ranges', () => {
@@ -873,7 +873,7 @@ describe('ranges', () => {
     return results;
 }).apply(this);`;
 
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -881,19 +881,19 @@ describe('splats', () => {
   it('a = c(b...)', () => {
     const example = `a = c(b...)`;
     const expected = `var a = c(...b);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (b...)->', () => {
     const example = `fn = (b...) ->`;
     const expected = `var fn = function(...b) {};`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('a = [b...]', () => {
     const example = `a = [b...]`;
     const expected = `var a = [...b];`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -906,7 +906,7 @@ describe('argument splats', () => {
   var last = arguments[arguments.length - 1];
   var beforeLast = arguments[arguments.length - 2];
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`fn = (@first = 'sobo', ..., beforeLast, last = bom()) ->`, () => {
@@ -928,7 +928,7 @@ describe('argument splats', () => {
   if (arguments[arguments.length - 2] === undefined)
     this.beforeLast = "boom";
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (first, rest..., last) ->', () => {
@@ -939,7 +939,7 @@ describe('argument splats', () => {
   var rest = arguments.slice(2, arguments[arguments.length - 1]);
   var last = arguments[arguments.length - 1];
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (first, @rest..., last) ->', () => {
@@ -950,7 +950,7 @@ describe('argument splats', () => {
   this.rest = arguments.slice(2, arguments[arguments.length - 1]);
   var last = arguments[arguments.length - 1];
 };`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -958,19 +958,19 @@ describe('slices', () => {
   it('bam[1...10]', () => {
     const example = `bam[1...10]`;
     const expected = `bam.slice(1, 10);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('bam[a()...b()]', () => {
     const example = `bam[a()...b()]`;
     const expected = `bam.slice(a(), b());`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`bam[a['foobar'].bom...100]`, () => {
     const example = `bam[a["foobar"].bom...100]`;
     const expected = `bam.slice(a["foobar"].bom, 100);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -978,13 +978,13 @@ describe('conditional expressions', () => {
   it(`foo = if bar is true then 12345 else 54321`, () => {
     const example = `foo = if bar is true then 12345 else 54321`;
     const expected = `var foo = (bar === true ? 12345 : 54321);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`console.log "boom" if "a" of b`, () => {
     const example = `console.log "boom" if "a" of b`;
     const expected = `("a" in b ? console.log("boom") : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom'`, () => {
@@ -997,7 +997,7 @@ describe('conditional expressions', () => {
     return "boom";
   }
 })();`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`, () => {
@@ -1012,7 +1012,7 @@ describe('conditional expressions', () => {
     return "bam";
   }
 })();`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it(`nested if expressions`, () => {
@@ -1033,7 +1033,7 @@ describe('conditional expressions', () => {
     return abc;
   }
 })();`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -1055,7 +1055,7 @@ describe('return statements', () => {
     return (c === "d" ? c = b : undefined);
   }
 })();`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('switch expression inside conditional', () => {
@@ -1077,7 +1077,7 @@ describe('return statements', () => {
     return (c === "d" ? c = b : undefined);
   }
 })() : undefined);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 
   it('switch statement inside conditional (not last statement)', () => {
@@ -1106,7 +1106,7 @@ describe('return statements', () => {
     return 123;
   }
 })();`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -1118,7 +1118,7 @@ describe('while loops', () => {
   console.log("boom");
 }`;
 
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
 
@@ -1243,6 +1243,6 @@ var serializeArray = function(el) {
     return params;
   };
 })(jQuery);`;
-    expect(compile(example)).toBe(expected);
+    expect(compile(example)).toEqual(expected);
   });
 });
