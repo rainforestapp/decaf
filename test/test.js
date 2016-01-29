@@ -116,6 +116,28 @@ describe('new Expressions', ()=> {
   });
 });
 
+describe('modulo operator', ()=> {
+  it('a %% b', ()=> {
+    const example = 'a %% b';
+    const expected = 'a % (b + b) % b;'
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('a %% b %% c', ()=> {
+    const example = 'a %% b %% c';
+    const expected = 'a % (b + b) % b % (c + c) % c;'
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it.only('yields the same result as the coffeescript compiler', ()=> {
+    const a = 18;
+    const b = 13;
+    const c = 20;
+    const modulo = function(a, b) { return (+a % (b = +b) + b) % b; };
+    expect(a % (b + b) % b % (c + c) % c).toBe(modulo(modulo(a, b), c));
+  });
+});
+
 describe('Existential Operator', ()=> {
   it('foo?', ()=> {
     const example = 'foo?';

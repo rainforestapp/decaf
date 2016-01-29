@@ -146,6 +146,23 @@ function mapValue(node, meta) {
 
 function mapOp(node, meta) {
   const {operator} = node;
+  if (node.operator === '%%' && node.second) {
+    return b.binaryExpression(
+      '%',
+      b.binaryExpression(
+        '%',
+        mapExpression(node.first, meta),
+        b.binaryExpression(
+          '+',
+          mapExpression(node.second, meta),
+          mapExpression(node.second, meta)
+        )
+      ),
+      mapExpression(node.second, meta)
+    );
+  }
+
+
   if (node.operator === '++' || node.operator === '--') {
     return b.updateExpression(
       node.operator,
