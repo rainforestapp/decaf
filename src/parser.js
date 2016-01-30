@@ -10,23 +10,11 @@ import any from 'lodash/collection/any';
 import jsc from 'jscodeshift';
 
 // regexes taken from coffeescript parser
-// const IDENTIFIER = /^(?!\d)[$\w\x7f-\uffff]+$/;
-// const SIMPLENUM = /^[+-]?\d+$/;
-// const HEXNUM = /^[+-]?0x[\da-f]+/i;
 const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
-// const IS_BOOLEAN = /^(?:(?:true)|(?:false))$/;
 
 const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/;
-
-// function isExpression(node) {
-//   const type = node.constructor.name;
-//   if (type === 'If') {
-//     return false;
-//   }
-//   return true;
-// }
 
 function mapBoolean(node) {
   if (node.base.val === 'true') {
@@ -318,7 +306,6 @@ function mapClassExpression(node, meta) {
     parent
   );
 }
-
 
 function mapClassDeclaration(node, meta) {
   let parent = null;

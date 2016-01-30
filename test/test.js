@@ -964,6 +964,14 @@ describe('splats', () => {
   });
 });
 
+describe.only('destructuring arguments', () => {
+  it('({a}) => a', () => {
+    const example = `({a}) => a`;
+    const expected = ``;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('argument splats', () => {
   it('fn = (first, ..., beforeLast, last) ->', () => {
     const example = `fn = (first, ..., beforeLast, last) ->`;
