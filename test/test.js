@@ -117,25 +117,69 @@ describe('new Expressions', () => {
 });
 
 describe('modulo operator', () => {
+  // module function copied from coffeescript compiler output
+  const modulo = function(a, b) { return (+a % (b = +b) + b) % b; };
+
   it('a %% b', () => {
     const example = 'a %% b';
-    const expected = 'a % (b + b) % b;'
+    const expected = '(a % b + b) % b;'
     expect(compile(example)).toEqual(expected);
   });
 
   it('a %% b %% c', () => {
     const example = 'a %% b %% c';
-    const expected = 'a % (b + b) % b % (c + c) % c;'
+    const expected = '((a % b + b) % b % c + c) % c;'
     expect(compile(example)).toEqual(expected);
   });
 
-  it.only('yields the same result as the coffeescript compiler', () => {
-    const a = 18;
-    const b = 13;
-    const c = 20;
-    // module function copied from coffeescript compiler output
-    const modulo = function(a, b) { return (+a % (b = +b) + b) % b; };
-    expect(a % (b + b) % b % (c + c) % c).toBe(modulo(modulo(a, b), c));
+  describe('yields the same result as the coffeescript compiler', () => {
+    it('-12 %% 13', () => {
+      const a = -12;
+      const b = 13;
+      const example = `${a} %% ${b}`;
+      expect(eval(compile(example))).toBe(modulo(a, b));
+    });
+
+    it('-12 %% 13', () => {
+      const a = -12;
+      const b = -3;
+      const example = `${a} %% ${b}`;
+      expect(eval(compile(example))).toBe(modulo(a, b));
+    });
+
+    it('18 %% 13 %% 20', () => {
+      const a = 18;
+      const b = 13;
+      const c = 20;
+      const example = `${a} %% ${b} %% ${c}`;
+      expect(eval(compile(example))).toBe(modulo(modulo(a, b), c));
+    });
+
+    it('-12 %% 13 %% 19', () => {
+      const a = -12;
+      const b = 13;
+      const c = 19;
+      const example = `${a} %% ${b} %% ${c}`;
+      console.log(compile(example));
+      expect(eval(compile(example))).toBe(modulo(modulo(a, b), c));
+    });
+
+    it('4 %% -103 %% -13', () => {
+      const a = 4;
+      const b = -103;
+      const c = -13;
+      const example = `${a} %% ${b} %% ${c}`;
+      expect(eval(compile(example))).toBe(modulo(modulo(a, b), c));
+    });
+
+    it('example 4', () => {
+      const a = 12;
+      const b = -33;
+      const c = 200;
+      const d = 139;
+      const example = `${a} %% ${b} %% ${c} %% ${d}`;
+      expect(eval(compile(example))).toBe(modulo(modulo(modulo(a, b), c), d));
+    });
   });
 });
 

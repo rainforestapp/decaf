@@ -146,19 +146,22 @@ function mapValue(node, meta) {
 function mapOp(node, meta) {
   const {operator} = node;
   if (node.operator === '%%' && node.second) {
-    return b.binaryExpression(
+    const op = b.binaryExpression(
       '%',
-      b.binaryExpression(
-        '%',
-        mapExpression(node.first, meta),
+      b.parenthesizedExpression(
         b.binaryExpression(
           '+',
-          mapExpression(node.second, meta),
+          b.binaryExpression(
+            '%',
+            mapExpression(node.first, meta),
+            mapExpression(node.second, meta)
+          ),
           mapExpression(node.second, meta)
         )
       ),
       mapExpression(node.second, meta)
     );
+    return op;
   }
 
 
