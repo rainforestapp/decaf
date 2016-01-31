@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/juliankrispel/decaf.svg)](https://travis-ci.org/juliankrispel/decaf)
 
-## A coffeescript es6 transpiler
+## A coffeescript to es6 transpiler
 
 Decaf grew out of the frustration of having to refactor coffeescript to es6 syntax. It does that for you automatically.
 
