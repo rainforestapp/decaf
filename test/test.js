@@ -964,6 +964,43 @@ describe('splats', () => {
   });
 });
 
+describe('destructuring arguments', () => {
+  it('({a}) => a', () => {
+    const example = `({a}) => a`;
+    const expected =
+`(
+  {
+    a
+  }) => {
+  return a;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('({a, b, c}) => a', () => {
+    const example = `({a, b, c}) => a + b + c`;
+    const expected =
+`(
+  {
+    a,
+    b,
+    c
+  }) => {
+  return a + b + c;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('([a, b, c]) => a', () => {
+    const example = `([a, b, c]) => a + b + c`;
+    const expected =
+`([a, b, c]) => {
+  return a + b + c;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('argument splats', () => {
   it('fn = (first, ..., beforeLast, last) ->', () => {
     const example = `fn = (first, ..., beforeLast, last) ->`;
