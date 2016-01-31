@@ -179,7 +179,7 @@ function mapOp(node, meta) {
 }
 
 function mapArguments(args, meta) {
-  return args.map((arg) => {
+  return args.map(arg => {
     let type;
     if (arg.name && arg.name.constructor) {
       type = arg.name.constructor.name;
@@ -188,9 +188,9 @@ function mapArguments(args, meta) {
       return mapArrayPattern(arg.name, meta);
     } else if (type === 'Obj') {
       return mapObjectPattern(arg.name.properties, meta);
-    } else {
-      return mapExpression(arg, meta);
     }
+
+    return mapExpression(arg, meta);
   });
 }
 
