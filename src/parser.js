@@ -179,7 +179,19 @@ function mapOp(node, meta) {
 }
 
 function mapArguments(args, meta) {
-  return args.map(arg => mapExpression(arg, meta));
+  return args.map((arg) => {
+    let type;
+    if (arg.name && arg.name.constructor) {
+      type = arg.name.constructor.name;
+    }
+    if (type === 'Arr') {
+      return mapArrayPattern(arg.name, meta);
+    } else if (type === 'Obj') {
+      return mapObjectPattern(arg.name.properties, meta);
+    } else {
+      return mapExpression(arg, meta);
+    }
+  });
 }
 
 function mapCall(node, meta = {}) {
@@ -1181,23 +1193,6 @@ function mapAssignmentPattern(node, meta) {
 
   return mapExpression(node, meta);
 }
-
-// function mapAssignmentLeftHand(node, meta) {
-//   const type = node.constructor.name;
-//   if (type === 'Value') {
-//     return mapAssignmentPattern(node.base, meta);
-//   }
-//   return mapExpression(node, meta);
-// }
-
-// function mapVariableDeclaration(node, meta) {
-//   const identifierName = node.variable.base.value;
-//   meta[identifierName] = true;
-//   return b.variableDeclaration('var', [
-//     b.variableDeclarator(
-//       mapAssignmentLeftHand(node.variable, meta),
-//       mapExpression(node.value, meta))]);
-// }
 
 function parse(coffeeSource) {
   const ast = coffeeAst(coffeeSource);

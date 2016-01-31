@@ -964,10 +964,39 @@ describe('splats', () => {
   });
 });
 
-describe.only('destructuring arguments', () => {
+describe('destructuring arguments', () => {
   it('({a}) => a', () => {
     const example = `({a}) => a`;
-    const expected = ``;
+    const expected =
+`(
+  {
+    a
+  }) => {
+  return a;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('({a, b, c}) => a', () => {
+    const example = `({a, b, c}) => a + b + c`;
+    const expected =
+`(
+  {
+    a,
+    b,
+    c
+  }) => {
+  return a + b + c;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('([a, b, c]) => a', () => {
+    const example = `([a, b, c]) => a + b + c`;
+    const expected =
+`([a, b, c]) => {
+  return a + b + c;
+};`;
     expect(compile(example)).toEqual(expected);
   });
 });
