@@ -451,6 +451,12 @@ function mapTryCatchBlock(node, meta) {
   );
 }
 
+function mapCommentStatement(node) {
+  const statement = b.emptyStatement();
+  statement.comments = mapComment(node);
+  return statement;
+}
+
 function mapStatement(node, meta) {
   const type = node.constructor.name;
 
@@ -468,6 +474,8 @@ function mapStatement(node, meta) {
     return mapConditionalStatement(node, meta);
   } else if (type === 'Try') {
     return mapTryCatchBlock(node, meta);
+  } else if (type === 'Comment') {
+    return mapCommentStatement(node, meta);
   }
 
   return b.expressionStatement(mapExpression(node, meta));
@@ -477,11 +485,11 @@ function mapBlockStatements(node, meta) {
   return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
-function mapBlockStatement(node, meta) {
-  const comments = node.expressions.filter(expr => expr.comment);
-  node.expressions = node.expressions.filter(expr => !expr.comment);
-  const block = b.blockStatement(mapBlockStatements(node, meta));
-  block.comments = comments.map(mapComment);
+function mapBlockStatement(node, meta, factory = b.blockStatement) {
+  const statements = mapBlockStatements(node, meta);
+  const comments = statements.filter(_s => _s.comments).map(_s => _s.comments);
+  const block = factory(statements);
+  block.comments = comments;
   return block;
 }
 
@@ -680,7 +688,7 @@ function transformToExpression(_node) {
 
   if (node.type === 'IfStatement') {
     node = addReturnStatementToIfBlocks(node);
-  } else if (node.tpye === 'SwitchStatement') {
+  } else if (node.type === 'SwitchStatement') {
     node = node;
   }
 
@@ -1070,8 +1078,7 @@ function conditionalStatementAsExpression(node, meta) {
 }
 
 function mapComment(node) {
-  const comment = b.block(node.comment);
-  return comment;
+  return b.block(node.comment);
 }
 
 function mapWhileLoop(node, meta) {
