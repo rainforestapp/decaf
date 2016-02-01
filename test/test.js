@@ -806,6 +806,47 @@ finally
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('maps try expressions', () => {
+    const example = `x = try y()`;
+    const expected = 
+`var x = (() => {
+  try {
+    return y();
+  } catch (undefined) {}
+})();`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('inserts return statement for nested expressions', () => {
+    const example =
+`word = 'boom'
+x = try
+  a = switch word
+    when 'hello' then 'bye'
+    else 'whatever'
+
+  a + ' boo'`;
+    const expected = 
+`var word = "boom";
+
+var x = (() => {
+  try {
+    var a = (() => {
+      switch (word) {
+      case "hello":
+        return "bye";
+      default:
+        return "whatever";
+      }
+    })();
+
+    return a + " boo";
+  } catch (undefined) {}
+})();`;
+    expect(compile(example)).toEqual(expected);
+  });
+
 });
 
 describe('switch blocks', () => {
