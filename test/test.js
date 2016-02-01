@@ -448,6 +448,26 @@ describe('FunctionExpression', () => {
 };`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('fn = (@a, b) => console.log a, b', () => {
+    const example = `fn = (@a, b) => console.log a, b`;
+    const expected =
+`var fn = (a, b) => {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('fn = (@a, b) -> console.log a, b', () => {
+    const example = `fn = (@a, b) -> console.log a, b`;
+    const expected =
+`var fn = function(a, b) {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('ClassExpression', () => {
