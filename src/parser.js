@@ -1227,30 +1227,33 @@ function mapAssignmentPattern(node, meta) {
 }
 
 function parse(coffeeSource) {
-  const ast = coffeeAst(coffeeSource);
-  const scope = new Scope(null, parse, null, []);
-  const meta = {scope, indent: ' '};
-
-  const comments = ast.expressions.filter(expr => expr.comment);
-  ast.expressions = ast.expressions.filter(expr => !expr.comment);
-
-  const program = b.program(mapBlockStatements(ast, meta));
-
-  program.comments = comments.map(mapComment);
-
   return program;
 }
 
+function coffeeParse(source) {
+  const ast = coffeeAst(source);
+  return ast;
+}
 
-export function compile(coffeeSource, opts) {
+function transpile(ast, meta)  {
+  if (meta === undefined) {
+    meta = {scope: new Scope(null, coffeeParse, null, []), indent: ' '};
+  }
+  const program = mapBlockStatement(ast, meta, b.program);
+  return program;
+}
+
+export function compile(source, opts) {
   const doubleSemicolon = /\;+/g;
   opts = opts || {tabWidth: 2, quote: 'double'};
+
   const _compile = compose(
     // hack because of double semicolon
     source => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
-    code => recast.print(code, opts),
+    jsAst => recast.print(jsAst, opts),
     insertVariableDeclarations,
-    parse);
+    transpile,
+    coffeeParse);
 
-  return _compile(coffeeSource, opts).code;
+  return _compile(source, opts).code;
 }
