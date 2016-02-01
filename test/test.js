@@ -806,6 +806,17 @@ finally
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('maps try expressions', () => {
+    const example = `x = try y()`;
+    const expected = 
+`var x = (() => {
+  try {
+    y();
+  } catch (undefined) {}
+})();`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('switch blocks', () => {

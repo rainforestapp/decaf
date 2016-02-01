@@ -375,6 +375,20 @@ function mapConditionalExpression(node, meta) {
   );
 }
 
+function mapTryExpression(node, meta) {
+  const tryBlock = mapTryCatchBlock(node, meta);
+  return b.callExpression(
+    b.arrowFunctionExpression(
+      [],
+      b.blockStatement(
+        [addReturnStatementToBlock(tryBlock)]
+      )
+    ),
+    []
+  );
+}
+
+
 function mapIfStatement(node, meta) {
   let alternate = null;
   if (node.elseBody) {
@@ -405,17 +419,32 @@ function mapConditionalStatement(node, meta) {
 }
 
 function mapTryCatchBlock(node, meta) {
+  let recovery;
+  let errorVar;
   let finalize = null;
+
   if (node.ensure) {
     finalize = mapBlockStatement(node.ensure, meta);
+  }
+
+  if (node.recovery) {
+    recovery = mapBlockStatement(node.recovery, meta);
+  } else {
+    recovery = b.blockStatement([]);
+  }
+
+  if (node.errorVariable) {
+    errorVar = mapLiteral({base: node.errorVariable}, meta);
+  } else {
+    errorVar = b.identifier('undefined');
   }
 
   return b.tryStatement(
     mapBlockStatement(node.attempt, meta),
     b.catchClause(
-      mapLiteral({base: node.errorVariable}, meta),
+      errorVar,
       null,
-      mapBlockStatement(node.recovery, meta)
+      recovery
     ),
     finalize
   );
@@ -1057,6 +1086,8 @@ function mapExpression(node, meta) {
     return mapMemberExpression(node, meta);
   } else if (type === 'If') {
     return conditionalStatementAsExpression(node, meta);
+  } else if (type === 'Try') {
+    return mapTryExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {
     return mapNewExpression(node, meta);
   } else if (type === 'Op' && node.operator === 'new') {
