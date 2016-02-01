@@ -54,36 +54,59 @@ describe('Values', () => {
   });
 });
 
-// describe('Comments', () => {
-//   it('multiline comments in Program', () => {
-//     const example =
-// `###
-// Hello I am a comment
-// ###`;
-//     const expected =
-// `/*
-// Hello I am a comment
-// */
-// `;
-//     expect(compile(example)).toEqual(expected);
-//   });
-//
-//   it.only('nested multiline comments', () => {
-//     const example =
-// `fun = () ->
-//  console.log('yoyoyo');
-//  ###
-//  Hello I am a comment
-//  ###`;
-//     const expected =
-// `var fun = function() {
-//  /*
-//  Hello I am a comment
-//  */
-// }`;
-//     expect(compile(example)).toEqual(expected);
-//   });
-// });
+describe('Comments', () => {
+  it('multiline comments in Program', () => {
+    const example =
+`###
+Hello I am a comment
+###`;
+    const expected =
+`/*
+Hello I am a comment
+*/
+`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('multiline comments (inline, trailing)', () => {
+    const example = "console.log('yoyoyo'); ### Hello I am a comment ###";
+    // TODO: add “.loc” so there’s a space between
+    const expected = 'console.log("yoyoyo");/* Hello I am a comment */';
+    expect(compile(example)).toEqual(expected);
+  });
+
+  // inline leading comment will be rendered on the preceding line
+
+  it('multiline comments (leading)', () => {
+    const example = "### Hello I am a comment ###\nconsole.log('yoyoyo');";
+    const expected = '/* Hello I am a comment */\nconsole.log("yoyoyo");';
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('multiline comments (trailing)', () => {
+    const example = "console.log('yoyoyo')\n### Hello I am a comment ###";
+    // TODO: add “.loc” so there’s a space between
+    const expected = 'console.log("yoyoyo");/* Hello I am a comment */';
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('multiline comments (nested)', () => {
+    const example =
+`fun = () ->
+  console.log('yoyoyo');
+  ###
+  Hello I am a comment
+  ###`;
+    // TODO: add “.loc” so there’s a space between
+    const expected =
+`var fun = function() {
+  return console.log("yoyoyo");/*
+  Hello I am a comment
+  */
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
 
 describe('Unary Expressions', () => {
   it('correctly converts', () => {
@@ -1320,11 +1343,12 @@ serializeArray = (el) ->
 ) jQuery
     `;
     const expected =
-`/*
+`var $ = require("jquery");
+
+/*
 yoyoyo here\'s the thing
 bobobo
 */
-var $ = require("jquery");
 
 $.fn.serializeForm = function() {
   var json = {};

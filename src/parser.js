@@ -477,12 +477,69 @@ function mapBlockStatements(node, meta) {
   return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
-function mapBlockStatement(node, meta) {
-  const comments = node.expressions.filter(expr => expr.comment);
-  node.expressions = node.expressions.filter(expr => !expr.comment);
-  const block = b.blockStatement(mapBlockStatements(node, meta));
-  block.comments = comments.map(mapComment);
+const fl = node => node.locationData.first_line;
+const ll = node => node.locationData.last_line;
+const fc = node => node.locationData.first_column;
+const lc = node => node.locationData.last_column;
+
+function findNearest(needle, nodes) {
+  // x1 <= C <= x2 && y1 <= C <= y2 => x1 <= y2 && y1 <= x2
+  const lineOverlap = node => fl(needle) <= ll(node) && fl(node) <= ll(needle);
+  const sameLines = node => fl(needle) === fl(node) && ll(node) === ll(needle);
+
+  const nodesLineHit = nodes
+    .filter(lineOverlap)
+    // if negative, left comes first => false - true == -1
+    .sort((left, right) => sameLines(right) - sameLines(left));
+    // TODO: also sort nodes within line
+
+  if (nodesLineHit.length) return nodesLineHit[0];
+
+  // if there’s no node on the same line, sort by closeness
+
+  const lineDistance = node => Math.min(
+    Math.abs(fl(needle) - ll(node)),
+    Math.abs(ll(needle) - fl(node)));
+
+  const nodesClose = nodes
+    .sort((left, right) => lineDistance(right) - lineDistance(left));
+
+  if (nodesClose.length) return nodesClose[0];
+
+  return null;
+}
+
+function mapBlock(blockNode, meta, factory) {
+  const comments = blockNode.expressions.filter(expr => expr.comment);
+  blockNode.expressions = blockNode.expressions.filter(expr => !expr.comment);
+  const statements = mapBlockStatements(blockNode, meta);
+
+  // patch in location data
+  // TODO: this is a hack. we don’t want them in the end but findNearest is more elegant this way
+  statements.forEach((node, i) => node.locationData = blockNode.expressions[i].locationData);
+
+  const nearest = comments.map(comm => findNearest(comm, statements));
+  // attach those comments to those nodes where we found a line overlap
+  nearest.forEach((node, index) => {
+    if (!node) return;
+    const comm = comments[index];
+    const separateLines = fl(comm) !== fl(node) && ll(comm) !== ll(node);
+    // should be disjunct anyway: fc(a) < lc(a) < fc(b) < lc(b)
+    const leading = separateLines ? fl(comm) < fl(node) : lc(comm) < fc(node);
+    node.comments = [leading ? mapComment(comm, true, false) : mapComment(comm, false, true)];
+  });
+
+  statements.forEach(node => delete node.locationData);
+
+  const block = factory(statements);
+  // just slap the other comments in for now.
+  block.comments = comments.filter((_, i) => !nearest[i]).map(comm => mapComment(comm));
+
   return block;
+}
+
+function mapBlockStatement(node, meta) {
+  return mapBlock(node, meta, b.blockStatement);
 }
 
 function mapInArrayExpression(node, meta) {
@@ -675,14 +732,15 @@ function transformToExpression(_node) {
   let node = _node;
 
   if (node.expression !== undefined) {
+    node.expression.comments = node.comments;
     return node.expression;
   }
 
   if (node.type === 'IfStatement') {
     node = addReturnStatementToIfBlocks(node);
-  } else if (node.tpye === 'SwitchStatement') {
-    node = node;
-  }
+  }// else if (node.type === 'SwitchStatement') {
+  //   node = node;
+  // }
 
   return b.callExpression(
     b.arrowFunctionExpression(
@@ -693,11 +751,23 @@ function transformToExpression(_node) {
   );
 }
 
+function findLastNonComment(nodeList) {
+  for (let i = nodeList.length - 1; i >= 0; i--) {
+    if (nodeList[i].type !== 'Comment') {
+      return i;
+    }
+  }
+  return -1;
+}
+
 function lastReturnStatement(nodeList = []) {
-  if (nodeList.length > 0) {
-    nodeList[nodeList.length - 1] =
-      b.returnStatement(
-        transformToExpression(nodeList[nodeList.length - 1]));
+  const lastNonComment = findLastNonComment(nodeList);
+  if (lastNonComment !== -1) {
+    const expr = transformToExpression(nodeList[lastNonComment]);
+    const ret = b.returnStatement(expr);
+    ret.comments = expr.comments;
+    delete expr.comments;
+    nodeList[lastNonComment] = ret;
   }
   return nodeList;
 }
@@ -1069,8 +1139,10 @@ function conditionalStatementAsExpression(node, meta) {
   return conditionalStatement.expression;
 }
 
-function mapComment(node) {
-  const comment = b.block(node.comment);
+function mapComment(node, leading, trailing) {
+  const comment = (typeof leading === 'undefined' && typeof trailing === 'undefined')
+    ? b.block(node.comment)
+    : b.block(node.comment, leading, trailing);
   return comment;
 }
 
@@ -1231,14 +1303,7 @@ function parse(coffeeSource) {
   const scope = new Scope(null, parse, null, []);
   const meta = {scope, indent: ' '};
 
-  const comments = ast.expressions.filter(expr => expr.comment);
-  ast.expressions = ast.expressions.filter(expr => !expr.comment);
-
-  const program = b.program(mapBlockStatements(ast, meta));
-
-  program.comments = comments.map(mapComment);
-
-  return program;
+  return mapBlock(ast, meta, b.program);
 }
 
 
