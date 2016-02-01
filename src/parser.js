@@ -377,7 +377,7 @@ function mapConditionalExpression(node, meta) {
 
 function mapTryExpression(node, meta) {
   const tryBlock = mapTryCatchBlock(node, meta);
-  tryBlock.block = addReturnStatementToBlock(tryBlock.block)
+  tryBlock.block = addReturnStatementToBlock(tryBlock.block);
   return b.callExpression(
     b.arrowFunctionExpression(
       [],
