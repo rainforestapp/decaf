@@ -222,9 +222,18 @@ function mapAssignment(node, meta) {
   return b.expressionStatement(mapExpression(node, meta));
 }
 
+function mapClassProperty(node, meta) {
+  return b.classProperty(mapExpression(node.variable, meta), mapExpression(node.value, meta), null);
+}
+
 function mapClassBodyElement(node, meta) {
   const superMethodName = node.variable.base.value;
   let elementType = 'method';
+
+  if (node.constructor.name === 'Assign' &&
+      node.value && node.value.constructor.name !== 'Code') {
+    return mapClassProperty(node, meta);
+  }
 
   if (superMethodName === 'constructor') {
     elementType = 'constructor';
