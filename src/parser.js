@@ -487,9 +487,9 @@ function mapBlockStatements(node, meta) {
 
 function mapBlockStatement(node, meta, factory = b.blockStatement) {
   const statements = mapBlockStatements(node, meta);
-  const comments = statements.filter(_s => _s.comments).map(_s => _s.comments);
+  //const comments = statements.filter(_s => _s.comments).map(_s => _s.comments);
   const block = factory(statements);
-  block.comments = comments;
+  //block.comments = comments;
   return block;
 }
 
@@ -1238,12 +1238,12 @@ function parse(coffeeSource) {
   const scope = new Scope(null, parse, null, []);
   const meta = {scope, indent: ' '};
 
-  const comments = ast.expressions.filter(expr => expr.comment);
-  ast.expressions = ast.expressions.filter(expr => !expr.comment);
+  //const comments = ast.expressions.filter(expr => expr.comment);
+  //ast.expressions = ast.expressions.filter(expr => !expr.comment);
 
-  const program = b.program(mapBlockStatements(ast, meta));
+  const program = mapBlockStatement(ast, meta, b.program);
 
-  program.comments = comments.map(mapComment);
+  //program.comments = comments.map(mapComment);
 
   return program;
 }

@@ -70,16 +70,14 @@ Hello I am a comment
 
   it.only('multiline comments as part of a program', () => {
     const example =
-`console.log 'yoyoyo'
-    
+`
 ###
 Hello I am a comment
-###`;
+###
+     
+console.log 'yoyoyo'`;
     const expected =
-`/*
-Hello I am a comment
-*/
-`;
+``;
     expect(compile(example)).toEqual(expected);
   });
 
