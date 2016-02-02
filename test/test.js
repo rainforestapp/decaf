@@ -637,6 +637,18 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('renders class attributes', () => {
+    const example =
+`class A
+  b: [1,2,3,4]
+`;
+    const expected =
+`class A {
+  b = [1, 2, 3, 4];
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('maps @ to this', () => {
     const example =
 `class A extends B
