@@ -3,6 +3,7 @@ import recast from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import findWhere from 'lodash/collection/findWhere';
+import flatten from 'lodash/array/flatten';
 import findIndex from 'lodash/array/findIndex';
 import get from 'lodash/object/get';
 import compose from 'lodash/function/compose';
@@ -251,7 +252,10 @@ function mapClassBodyElement(node, meta) {
 }
 
 function getBoundMethodNames(classElements, meta) {
-  return classElements
+  return flatten(classElements
+      .filter(el => el.base && el.base.properties)
+      .map(el => el.base.properties)
+    )
     .filter(el =>
       el.value.constructor.name === 'Code' &&
         el.value.bound === true
@@ -267,18 +271,32 @@ function unbindMethods(classElements) {
   });
 }
 
+function mapStaticClassProperty(node, meta) {
+  return b.classProperty(mapExpression(node.variable.properties[0], meta), mapExpression(node.value, meta), null, true);
+}
+
+function mapClassExpressions(expressions, meta) {
+  return expressions.reduce((arr, expr) => {
+    const type = expr.constructor.name;
+    let classElements = [];
+    if (type === 'Assign') {
+      if (expr.variable && expr.variable.this === true) {
+        return arr.concat([mapStaticClassProperty(expr, meta)]);
+      }
+    } else if (type === 'Value') {
+      classElements = expr.base.properties;
+      classElements = unbindMethods(classElements);
+      classElements = classElements.map(el => mapClassBodyElement(el, meta));
+      return arr.concat(classElements);
+    }
+    return arr;
+  }, []);
+}
+
 function mapClassBody(node, meta) {
   const {expressions} = node;
-  let boundMethods = [];
-  let classElements = [];
-
-  if (expressions.length > 0) {
-    classElements = node.expressions[0].base.properties;
-    boundMethods = getBoundMethodNames(classElements, meta);
-    classElements = unbindMethods(classElements);
-    classElements = classElements.map(el => mapClassBodyElement(el, meta));
-  }
-
+  const boundMethods = getBoundMethodNames(expressions, meta);
+  const classElements = mapClassExpressions(expressions, meta);
   let constructor = findWhere(classElements, {kind: 'constructor'});
 
   if (boundMethods.length > 0) {
