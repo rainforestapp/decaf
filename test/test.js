@@ -54,36 +54,50 @@ describe('Values', () => {
   });
 });
 
-// describe('Comments', () => {
-//   it('multiline comments in Program', () => {
-//     const example =
-// `###
-// Hello I am a comment
-// ###`;
-//     const expected =
-// `/*
-// Hello I am a comment
-// */
-// `;
-//     expect(compile(example)).toEqual(expected);
-//   });
-//
-//   it.only('nested multiline comments', () => {
-//     const example =
-// `fun = () ->
-//  console.log('yoyoyo');
-//  ###
-//  Hello I am a comment
-//  ###`;
-//     const expected =
-// `var fun = function() {
-//  /*
-//  Hello I am a comment
-//  */
-// }`;
-//     expect(compile(example)).toEqual(expected);
-//   });
-// });
+describe('Comments', () => {
+  it('multiline comments on their own', () => {
+    const example =
+`###
+Hello I am a comment
+###`;
+    const expected =
+`/*
+Hello I am a comment
+*/
+`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it.only('multiline comments as part of a program', () => {
+    const example =
+`
+###
+Hello I am a comment
+###
+     
+console.log 'yoyoyo'`;
+    const expected =
+``;
+    expect(compile(example)).toEqual(expected);
+  });
+
+
+  it('nested multiline comments', () => {
+    const example =
+`fun = () ->
+  console.log('yoyoyo');
+  ###
+  Hello I am a comment
+  ###`;
+    const expected =
+`var fun = function() {
+ /*
+ Hello I am a comment
+ */
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
 
 describe('Unary Expressions', () => {
   it('correctly converts', () => {
