@@ -458,6 +458,8 @@ function mapStatement(node, meta) {
     return mapWhileLoop(node, meta);
   } else if (type === 'Assign') {
     return mapAssignment(node, meta);
+  } else if (type === 'Comment') {
+    return b.emptyStatement();
   } else if (type === 'For') {
     return mapForStatement(node, meta);
   } else if (type === 'Class') {
@@ -477,11 +479,8 @@ function mapBlockStatements(node, meta) {
   return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
-function mapBlockStatement(node, meta) {
-  const comments = node.expressions.filter(expr => expr.comment);
-  node.expressions = node.expressions.filter(expr => !expr.comment);
-  const block = b.blockStatement(mapBlockStatements(node, meta));
-  block.comments = comments.map(mapComment);
+function mapBlockStatement(node, meta, factory = b.blockStatement) {
+  const block = factory(mapBlockStatements(node, meta));
   return block;
 }
 
@@ -1074,10 +1073,10 @@ function conditionalStatementAsExpression(node, meta) {
   return conditionalStatement.expression;
 }
 
-function mapComment(node) {
-  const comment = b.block(node.comment);
-  return comment;
-}
+// function mapComment(node) {
+//   const comment = b.block(node.comment);
+//   return comment;
+// }
 
 function mapWhileLoop(node, meta) {
   return b.whileStatement(
@@ -1231,31 +1230,30 @@ function mapAssignmentPattern(node, meta) {
   return mapExpression(node, meta);
 }
 
-function parse(coffeeSource) {
-  const ast = coffeeAst(coffeeSource);
-  const scope = new Scope(null, parse, null, []);
-  const meta = {scope, indent: ' '};
+function coffeeParse(source) {
+  const ast = coffeeAst(source);
+  return ast;
+}
 
-  const comments = ast.expressions.filter(expr => expr.comment);
-  ast.expressions = ast.expressions.filter(expr => !expr.comment);
-
-  const program = b.program(mapBlockStatements(ast, meta));
-
-  program.comments = comments.map(mapComment);
-
+export function transpile(ast, meta) {
+  if (meta === undefined) {
+    meta = {scope: new Scope(null, coffeeParse, null, []), indent: ' '};
+  }
+  const program = mapBlockStatement(ast, meta, b.program);
   return program;
 }
 
-
-export function compile(coffeeSource, opts) {
+export function compile(source, opts) {
   const doubleSemicolon = /\;+/g;
   opts = opts || {tabWidth: 2, quote: 'double'};
+
   const _compile = compose(
     // hack because of double semicolon
-    source => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
-    code => recast.print(code, opts),
+    compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
+    jsAst => recast.print(jsAst, opts),
     insertVariableDeclarations,
-    parse);
+    transpile,
+    coffeeParse);
 
-  return _compile(coffeeSource, opts).code;
+  return _compile(source).code;
 }
