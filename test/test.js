@@ -266,6 +266,76 @@ describe('embedded javascript', () => {
   });
 });
 
+describe('return statements', () => {
+  it('()-> return "boom"', () => {
+    const example = '()-> return "boom"';
+    const expected =
+`(function() {
+  return "boom";
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('a = ()-> return "boom"', () => {
+    const example = 'a = ()-> return "boom"';
+    const expected =
+`var a = function() {
+  return "boom";
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('a = ()-> return "boom" if b is 123', () => {
+    const example = 'a = ()-> return "boom" if b is 123';
+    const expected =
+`var a = function() {
+  if (b === 123) {
+    return "boom";
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('inserting return statements after return statements', () => {
+    const example =
+`a = ()->
+  if b is 123
+    return "boom"
+    'yoyo'`;
+    const expected =
+`var a = function() {
+  if (b === 123) {
+    return "boom";
+    return "yoyo";
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('return statements in nested conditionals', () => {
+    const example =
+`a = ()->
+  if b is 123
+    return "boom"
+    return "bloom" if flower is "rose"
+    'yoyo'`;
+    const expected =
+`var a = function() {
+  if (b === 123) {
+    return "boom";
+
+    if (flower === "rose") {
+      return "bloom";
+    }
+
+    return "yoyo";
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+});
+
 describe('assignment expressions', () => {
   it('assigns strings', () => {
     expect(compile('bam = "hello"')).toEqual('var bam = "hello";');
@@ -1311,127 +1381,6 @@ describe('while loops', () => {
   console.log("boom");
 }`;
 
-    expect(compile(example)).toEqual(expected);
-  });
-});
-
-describe('large code examples', () => {
-  it('code example', () => {
-    const example =
-String.raw`$ = require 'jquery'
-
-###
-yoyoyo here's the thing
-bobobo
-###
-
-$.fn.serializeForm = ->
-  json = {}
-  for el in serializeArray($(this))
-    json[el.name] = el.value
-  json
-
-serializeArray = (el) ->
-  inputs = []
-  el.find('input, textarea, select').each (i, input) =>
-    unless input.disabled
-      if $(input).is(':checkbox')
-        inputs.push
-          name: input.name
-          value: $(input).is(':checked')
-      else
-        val = $(input).val()
-        inputs.push
-          name: input.name
-          value: val
-
-  inputs
-
-(($) ->
-  re = /([^&=]+)=?([^&]*)/g
-  decodeRE = /\+/g # Regex for replacing addition symbol with a space
-  decode = (str) ->
-    decodeURIComponent str.replace(decodeRE, " ")
-
-  $.parseParams = (query) ->
-    params = {}
-    e = undefined
-    while e = re.exec(query)
-      k = decode(e[1])
-      v = decode(e[2])
-      if k.substring(k.length - 2) is "[]"
-        k = k.substring(0, k.length - 2)
-        (params[k] or (params[k] = [])).push v
-      else
-        params[k] = v
-    params
-) jQuery
-    `;
-    const expected =
-`var $ = require("jquery");
-
-$.fn.serializeForm = function() {
-  var json = {};
-
-  for (let el in serializeArray($(this))) {
-    json[el.name] = el.value;
-  }
-
-  return json;
-};
-
-var serializeArray = function(el) {
-  var inputs = [];
-
-  el.find(\'input, textarea, select\').each((i, input) => {
-    return (() => {
-      if (!input.disabled) {
-        return (() => {
-          var val;
-
-          if ($(input).is(":checkbox")) {
-            return inputs.push({
-              name: input.name,
-              value: $(input).is(":checked")
-            });
-          } else {
-            return val = $(input).val();
-          }
-        })();
-      }
-    })();
-  });
-
-  return inputs;
-};
-
-(function($) {
-  var re = /([^&=]+)=?([^&]*)/g;
-  var decodeRE = /\\+/g;
-
-  var decode = function(str) {
-    return decodeURIComponent(str.replace(decodeRE, " "));
-  };
-
-  return $.parseParams = function(query) {
-    var params = {};
-    var e = undefined;
-
-    while (e = re.exec(query)) {
-      var k = decode(e[1]);
-      var v = decode(e[2]);
-
-      if (k.substring(k.length - 2) === "[]") {
-        var k = k.substring(0, k.length - 2);
-        (params[k] || (params[k] = [])).push(v);
-      } else {
-        params[k] = v;
-      }
-    }
-
-    return params;
-  };
-})(jQuery);`;
     expect(compile(example)).toEqual(expected);
   });
 });
