@@ -256,10 +256,10 @@ function getBoundMethodNames(classElements, meta) {
       .filter(el => el.base && el.base.properties)
       .map(el => el.base.properties)
     )
-    .filter(el => {
-      return el.value.constructor.name === 'Code' &&
+    .filter(el =>
+      el.value.constructor.name === 'Code' &&
         el.value.bound === true
-    }).map(el => mapExpression(el.variable, meta));
+    ).map(el => mapExpression(el.variable, meta));
 }
 
 function unbindMethods(classElements) {
