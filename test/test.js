@@ -579,6 +579,21 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('assigns @ arguments with default values to this', ()=> {
+    const example =
+`class A
+  constructor: (@b = 'boom') ->`;
+
+    const expected =
+`class A {
+  constructor(b = "boom") {
+    this.b = b;
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+
   describe('super', () => {
     it(`maps super 1 to 1 if in constructor`, () => {
       const example =
