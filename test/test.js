@@ -1,3 +1,4 @@
+/* eslint-disable no-eval */
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
 
@@ -118,17 +119,17 @@ describe('new Expressions', () => {
 
 describe('modulo operator', () => {
   // module function copied from coffeescript compiler output
-  const modulo = function(a, b) { return (+a % (b = +b) + b) % b; };
+  function modulo(left, right) { return (+left % (right = +right) + right) % right; }
 
   it('a %% b', () => {
     const example = 'a %% b';
-    const expected = '(a % b + b) % b;'
+    const expected = '(a % b + b) % b;';
     expect(compile(example)).toEqual(expected);
   });
 
   it('a %% b %% c', () => {
     const example = 'a %% b %% c';
-    const expected = '((a % b + b) % b % c + c) % c;'
+    const expected = '((a % b + b) % b % c + c) % c;';
     expect(compile(example)).toEqual(expected);
   });
 
@@ -160,7 +161,6 @@ describe('modulo operator', () => {
       const b = 13;
       const c = 19;
       const example = `${a} %% ${b} %% ${c}`;
-      console.log(compile(example));
       expect(eval(compile(example))).toBe(modulo(modulo(a, b), c));
     });
 
@@ -858,7 +858,7 @@ finally
 
   it('maps try expressions', () => {
     const example = `x = try y()`;
-    const expected = 
+    const expected =
 `var x = (() => {
   try {
     return y();
@@ -876,7 +876,7 @@ x = try
     else 'whatever'
 
   a + ' boo'`;
-    const expected = 
+    const expected =
 `var word = "boom";
 
 var x = (() => {
@@ -895,7 +895,6 @@ var x = (() => {
 })();`;
     expect(compile(example)).toEqual(expected);
   });
-
 });
 
 describe('switch blocks', () => {
@@ -1369,11 +1368,7 @@ serializeArray = (el) ->
 ) jQuery
     `;
     const expected =
-`/*
-yoyoyo here\'s the thing
-bobobo
-*/
-var $ = require("jquery");
+`var $ = require("jquery");
 
 $.fn.serializeForm = function() {
   var json = {};

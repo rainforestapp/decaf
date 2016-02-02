@@ -458,6 +458,8 @@ function mapStatement(node, meta) {
     return mapWhileLoop(node, meta);
   } else if (type === 'Assign') {
     return mapAssignment(node, meta);
+  } else if (type === 'Comment') {
+    return b.emptyStatement();
   } else if (type === 'For') {
     return mapForStatement(node, meta);
   } else if (type === 'Class') {
@@ -477,11 +479,8 @@ function mapBlockStatements(node, meta) {
   return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
-function mapBlockStatement(node, meta) {
-  const comments = node.expressions.filter(expr => expr.comment);
-  node.expressions = node.expressions.filter(expr => !expr.comment);
-  const block = b.blockStatement(mapBlockStatements(node, meta));
-  block.comments = comments.map(mapComment);
+function mapBlockStatement(node, meta, factory = b.blockStatement) {
+  const block = factory(mapBlockStatements(node, meta));
   return block;
 }
 
@@ -1074,10 +1073,10 @@ function conditionalStatementAsExpression(node, meta) {
   return conditionalStatement.expression;
 }
 
-function mapComment(node) {
-  const comment = b.block(node.comment);
-  return comment;
-}
+// function mapComment(node) {
+//   const comment = b.block(node.comment);
+//   return comment;
+// }
 
 function mapWhileLoop(node, meta) {
   return b.whileStatement(
@@ -1231,16 +1230,12 @@ function mapAssignmentPattern(node, meta) {
   return mapExpression(node, meta);
 }
 
-function parse(coffeeSource) {
-  return program;
-}
-
 function coffeeParse(source) {
   const ast = coffeeAst(source);
   return ast;
 }
 
-function transpile(ast, meta)  {
+export function transpile(ast, meta) {
   if (meta === undefined) {
     meta = {scope: new Scope(null, coffeeParse, null, []), indent: ' '};
   }
@@ -1254,11 +1249,11 @@ export function compile(source, opts) {
 
   const _compile = compose(
     // hack because of double semicolon
-    source => Object.assign({}, source, {code: source.code.replace(doubleSemicolon, ';')}),
+    compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
     jsAst => recast.print(jsAst, opts),
     insertVariableDeclarations,
     transpile,
     coffeeParse);
 
-  return _compile(source, opts).code;
+  return _compile(source).code;
 }
