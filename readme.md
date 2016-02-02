@@ -12,9 +12,19 @@ When decaf encounters coffeescript syntax which can't be transpiled to es6 it fa
 
 At the moment decaf can transpile a fairly wide range of coffeescript syntax. To get a better idea of which features are supported, please have a look at [the test suite](https://travis-ci.org/juliankrispel/decaf).
 
-## Getting Started
+## Using decaf as a cli tool
 
-Right now, the easiest way to get started using decaf is to require it as a node module and simply use it as a transform. We recommend using it with tools like [jscodeshift](https://github.com/facebook/jscodeshift/).
+To use decaf as a cli tool install it first via npm.
+
+`npm install decafjs -g` (you can also install it locally, but if you are using it for more projects, installing it globally is recommended)
+
+Now simply point decaf at a file or a directory that you want to convert to es6 and tada:
+
+`decaf coffee-folder`
+
+## Using decaf as a code transform
+
+You can require decaf as a node module and simply use it as a transform. We recommend using it with tools like [jscodeshift](https://github.com/facebook/jscodeshift/).
 
 To install run `npm install decafjs`.
 
