@@ -410,6 +410,7 @@ function mapConditionalStatement(node, meta) {
   if (
     node.elseBody && node.elseBody.expressions.length > 1 ||
     node.body && node.body.expressions.length > 1 ||
+    node.body && any(node.body.expressions, expr => expr.constructor.name === 'Return') ||
     node.body && node.body.expressions[0].constructor.name === 'If' ||
     node.elseBody && node.elseBody.expressions[0].constructor.name === 'If'
   ) {
@@ -451,6 +452,10 @@ function mapTryCatchBlock(node, meta) {
   );
 }
 
+function mapReturnStatement(node, meta) {
+  return b.returnStatement(mapExpression(node.expression, meta));
+}
+
 function mapStatement(node, meta) {
   const type = node.constructor.name;
 
@@ -458,6 +463,8 @@ function mapStatement(node, meta) {
     return mapWhileLoop(node, meta);
   } else if (type === 'Assign') {
     return mapAssignment(node, meta);
+  } else if (type === 'Return') {
+    return mapReturnStatement(node, meta);
   } else if (type === 'Comment') {
     return b.emptyStatement();
   } else if (type === 'For') {
@@ -697,9 +704,15 @@ function transformToExpression(_node) {
 
 function lastReturnStatement(nodeList = []) {
   if (nodeList.length > 0) {
-    nodeList[nodeList.length - 1] =
-      b.returnStatement(
-        transformToExpression(nodeList[nodeList.length - 1]));
+    const last = nodeList.length - 1;
+
+    if (nodeList[last].type === 'IfStatement') {
+      nodeList[last] = addReturnStatementToIfBlocks(nodeList[last]);
+    } else {
+      nodeList[last] =
+        b.returnStatement(
+          transformToExpression(nodeList[nodeList.length - 1]));
+    }
   }
   return nodeList;
 }
@@ -724,6 +737,11 @@ function addReturnStatementToIfBlocks(node) {
 }
 
 function addReturnStatementToBlock(node) {
+  const hasReturnStatement = findIndex(node.body, {type: 'ReturnStatement'}) === node.body.length - 1;
+
+  if (hasReturnStatement) {
+    return node;
+  }
   node.body = lastReturnStatement(node.body);
   return node;
 }
