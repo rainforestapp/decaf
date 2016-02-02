@@ -495,20 +495,19 @@ function mapInArrayExpression(node, meta) {
   );
 }
 
-function extractArgumentMemberAssignment(nodes) {
+function extractAssignStatementsByArguments(nodes) {
   return nodes
-  .filter(node =>
-          node.type === 'AssignmentExpression' &&
-          node.left.type === 'MemberExpression')
-  .map(node =>
-    b.expressionStatement(
-      b.assignmentExpression(
-        node.operator,
-        node.left,
-        node.left.property
+    .map(node => node.type === 'AssignmentExpression' ? node.left : node)
+    .filter(node => node.type === 'MemberExpression' && node.object.type === 'ThisExpression')
+    .map(node =>
+      b.expressionStatement(
+        b.assignmentExpression(
+          '=',
+          node,
+          node.property
+        )
       )
-    )
-  );
+    );
 }
 
 function normalizeArguments(nodes) {
@@ -520,6 +519,10 @@ function normalizeArguments(nodes) {
         node.left.property,
         node.right
       );
+    }
+    if (node.type === 'MemberExpression' &&
+       node.object.type === 'ThisExpression') {
+      return {type: 'Identifier', name: node.property.name};
     }
     return node;
   });
@@ -767,7 +770,7 @@ function mapFunction(node, meta) {
   // For our compilation we translate it like
   // fn = function() { this.a = arguments[0]; } as there is no 1 to 1
   // solution here
-  setupStatements = setupStatements.concat(extractArgumentMemberAssignment(args, meta));
+  setupStatements = setupStatements.concat(extractAssignStatementsByArguments(args, meta));
 
   const block = addReturnStatementToBlock(mapBlockStatement(node.body, meta), meta);
 
@@ -827,17 +830,19 @@ function insertVariableDeclarations(ast) {
     n.MemberExpression.check(node.left) !== true
   )
   .filter(path => {
-    // const assignmentCount = jsc(path.value)
-    // .closest(jsc.AssignmentExpression, {left: path.value.left }).nodes().length;
-
+    const needle = {type: 'Identifier', name: path.value.left.name};
     const shadowedVariables = inParentScope(path, node => {
       if (n.VariableDeclaration.check(node)) {
-        return findIndex(node.declarations, {id: {type: 'Identifier', name: path.value.left.name}}) > -1;
+        return findIndex(node.declarations, {id: needle}) > -1;
+      }
+
+      if (n.MethodDefinition.check(node) && node.value && findIndex(node.value, {left: needle})) {
+        return true;
       }
 
       if (n.ExpressionStatement.check(node)) {
         if ((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
-            findIndex(node.expression.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
+            findIndex(node.expression.params, needle) > -1) {
           return true;
         }
 
@@ -846,7 +851,7 @@ function insertVariableDeclarations(ast) {
             return true;
           } else if (n.FunctionExpression.check(node.expression.right) ||
                      n.ArrowFunctionExpression.check(node.expression.right)) {
-            if (findIndex(node.expression.right.params, {type: 'Identifier', name: path.value.left.name}) > -1) {
+            if (findIndex(node.expression.right.params, needle) > -1) {
               return true;
             } else if (findIndex(node.expression.right.params,
                                  {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {

@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+var program = require('commander');
+var dir = require('node-dir');
+var join = require('path').join;
+var dirname = require('path').dirname;
+var basename = require('path').basename;
+var extname = require('path').extname;
+var fs = require('fs');
+var decaf = require('../dist/index');
+
+program
+  .version(require('../package.json').version)
+  .usage('<path>... [options]')
+  .description('<path> is coffeescript files or directory')
+  .option('-p, --print', 'Print output')
+  .parse(process.argv);
+
+if (program.args.length === 0) {
+  program.help();
+  process.exit(0);
+}
+run(program.args, program);
+
+function run(paths, config) {
+  paths.forEach(function (path) {
+    if (!fs.existsSync(path)) {
+      console.log('Skipping path "%s" which does not exist.', path);
+      return;
+    }
+
+    var stats = fs.statSync(path);
+    if (stats.isDirectory()) {
+      dir.files(path, function (err, files) {
+        files.filter(function (file) {
+          return fs.statSync(file).isFile() && /.*\.coffee$/.test(file);
+        }).forEach(function (file) {
+          runByFile(file, config);
+        });
+      });
+    } else {
+      runByFile(path, config);
+    }
+  });
+}
+
+function runByFile(file, config) {
+  var coffee = fs.readFileSync(file, { encoding: 'utf8'});
+  try {
+    var js = decaf.compile(coffee);
+
+    var outputPath = join(dirname(file), basename(file, extname(file))) + '.js';
+    var output = fs.createWriteStream(outputPath, { encoding: 'utf8' });
+    if (config.print) {
+      output = process.stdout;
+    }
+    output.write(js);
+
+    if (output !== process.stdout) {
+      console.log('Generate es6 file "%s" from "%s".', output.path, file);
+    }
+  } catch (e) {
+    console.log('Skipping path "%s" which parsed error.', file);
+    console.log(e.stack);
+  }
+}

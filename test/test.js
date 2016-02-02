@@ -448,6 +448,26 @@ describe('FunctionExpression', () => {
 };`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('fn = (@a, b) => console.log a, b', () => {
+    const example = `fn = (@a, b) => console.log a, b`;
+    const expected =
+`var fn = (a, b) => {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('fn = (@a, b) -> console.log a, b', () => {
+    const example = `fn = (@a, b) -> console.log a, b`;
+    const expected =
+`var fn = function(a, b) {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('ClassExpression', () => {
@@ -544,6 +564,35 @@ describe('ClassExpression', () => {
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('assigns @ arguments to this', ()=> {
+    const example =
+`class A
+  constructor: (@b) ->`;
+
+    const expected =
+`class A {
+  constructor(b) {
+    this.b = b;
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('assigns @ arguments with default values to this', ()=> {
+    const example =
+`class A
+  constructor: (@b = 'boom') ->`;
+
+    const expected =
+`class A {
+  constructor(b = "boom") {
+    this.b = b;
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
 
   describe('super', () => {
     it(`maps super 1 to 1 if in constructor`, () => {
