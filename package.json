@@ -7,6 +7,9 @@
     "url": "git@github.com:juliankrispel/decaf.git"
   },
   "main": "dist/index.js",
+  "bin": {
+    "decafjs": "bin/decafjs"
+  },
   "scripts": {
     "test:mocha": "mocha --compilers js:babel-core/register -R ../../../reporter",
     "test:lint": "eslint src",
@@ -21,8 +24,10 @@
   "dependencies": {
     "ast-types": "0.8.13",
     "coffee-script": "1.10.0",
+    "commander": "^2.9.0",
     "jscodeshift": "0.3.12",
     "lodash": "3.10.1",
+    "node-dir": "^0.1.11",
     "recast": "benjamn/recast#b0f031b1a36199308a1eb77cc9709d554f14e671"
   },
   "devDependencies": {
