@@ -55,6 +55,23 @@ describe('Values', () => {
   });
 });
 
+describe('throw statements', ()=> {
+  it('throw "error" if success is false', ()=> {
+    const example = 'throw "error" if success is false';
+    const expected =
+`if (success === false) {
+  throw "error";
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('throw new Error "boom"', ()=> {
+    const example = 'throw new Error "boom"';
+    const expected = `throw new Error("boom");`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 // describe('Comments', () => {
 //   it('multiline comments in Program', () => {
 //     const example =
@@ -333,7 +350,6 @@ describe('return statements', () => {
 };`;
     expect(compile(example)).toEqual(expected);
   });
-
 });
 
 describe('assignment expressions', () => {

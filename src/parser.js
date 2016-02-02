@@ -410,6 +410,7 @@ function mapConditionalStatement(node, meta) {
   if (
     node.elseBody && node.elseBody.expressions.length > 1 ||
     node.body && node.body.expressions.length > 1 ||
+    node.body && any(node.body.expressions, expr => expr.constructor.name === 'Throw') ||
     node.body && any(node.body.expressions, expr => expr.constructor.name === 'Return') ||
     node.body && node.body.expressions[0].constructor.name === 'If' ||
     node.elseBody && node.elseBody.expressions[0].constructor.name === 'If'
@@ -465,6 +466,8 @@ function mapStatement(node, meta) {
     return mapAssignment(node, meta);
   } else if (type === 'Return') {
     return mapReturnStatement(node, meta);
+  } else if (type === 'Throw') {
+    return mapThrowStatement(node, meta);
   } else if (type === 'Comment') {
     return b.emptyStatement();
   } else if (type === 'For') {
@@ -1100,6 +1103,10 @@ function mapWhileLoop(node, meta) {
   return b.whileStatement(
     mapExpression(node.condition),
     mapBlockStatement(node.body, meta));
+}
+
+function mapThrowStatement(node, meta) {
+  return b.throwStatement(mapExpression(node.expression, meta));
 }
 
 function mapExpression(node, meta) {
