@@ -448,6 +448,26 @@ describe('FunctionExpression', () => {
 };`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('fn = (@a, b) => console.log a, b', () => {
+    const example = `fn = (@a, b) => console.log a, b`;
+    const expected =
+`var fn = (a, b) => {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('fn = (@a, b) -> console.log a, b', () => {
+    const example = `fn = (@a, b) -> console.log a, b`;
+    const expected =
+`var fn = function(a, b) {
+  this.a = a;
+  return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('ClassExpression', () => {
@@ -540,6 +560,20 @@ describe('ClassExpression', () => {
 `class A extends B {
   b() {
     return this.bom(1, 2, "hey");
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('assigns @ arguments to this', ()=> {
+    const example =
+`class A
+  constructor: (@b) ->`;
+
+    const expected =
+`class A {
+  constructor(b) {
+    this.b = b;
   }
 }`;
     expect(compile(example)).toEqual(expected);
