@@ -759,6 +759,17 @@ describe('ClassExpression', () => {
   });
 });
 
+describe('extends keyword', () => {
+  it.only('extends plain objects', () => {
+    const example =
+`a = a: 1
+b = b: 2
+c = a extends b`;
+    const expected = ``;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('Destructuring', () => {
   it('maps simple object destructuring assignments', () => {
     const example = `{a, b} = abam`;
