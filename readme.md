@@ -10,6 +10,8 @@ Because decaf uses the coffeescript compiler under the hood it can parse all cof
 
 When decaf encounters coffeescript syntax which can't be transpiled to es6 it falls back to using the coffeescript compiler output.
 
+At the moment decaf can transpile a fairly wide range of coffeescript syntax. To get a better idea of which features are supported, please have a look at [the test suite](https://travis-ci.org/juliankrispel/decaf).
+
 ## Getting Started
 
 Right now, the easiest way to get started using decaf is to require it as a node module and simply use it as a transform. We recommend using it with tools like [jscodeshift](https://github.com/facebook/jscodeshift/).
