@@ -300,12 +300,12 @@ describe('return statements', () => {
   it('conditional statements with return in else block', () => {
     const example =
 `if bom is true
-  console.log 'dwq'
+  console.log 'fooBar'
 else
   return false`;
     const expected =
 `if (bom === true) {
-  console.log("dwq");
+  console.log("fooBar");
 } else {
   return false;
 }`;
@@ -490,7 +490,7 @@ try
   bom()
 catch er
   a = er
-  er = 'dwq'`;
+  er = 'fooBar'`;
     const expected =
 `var a = "a";
 
@@ -498,7 +498,7 @@ try {
   bom();
 } catch (er) {
   a = er;
-  er = "dwq";
+  er = "fooBar";
 }`;
     expect(compile(example)).toEqual(expected);
   });
@@ -817,13 +817,14 @@ describe('ClassExpression', () => {
 
     it(`maps to super.<methodName> if not in constructor in a bound method`, () => {
       const example =
-`class A
+`class A extends B
   b: =>
     super('boom')
 `;
       const expected =
-`class A {
+`class A extends B {
   constructor() {
+    super();
     this.b.bind(this);
   }
 
@@ -833,6 +834,27 @@ describe('ClassExpression', () => {
 }`;
       expect(compile(example)).toEqual(expected);
     });
+
+    it(`inserts CallExpression with super for ClassExpressions`, () => {
+      const example =
+`ClassA = class A extends B
+  b: =>
+    super('boom')
+`;
+      const expected =
+`var ClassA = class A extends B {
+  constructor() {
+    super();
+    this.b.bind(this);
+  }
+
+  b() {
+    return super.b("boom");
+  }
+};`;
+      expect(compile(example)).toEqual(expected);
+    });
+
   });
 
   describe('class methods can be called directly', () => {
