@@ -483,6 +483,26 @@ var b = function() {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('variable declarations in try blocks', () => {
+    const example =
+`a = 'a'
+try
+  bom()
+catch er
+  a = er
+  er = 'dwq'`;
+    const expected =
+`var a = "a";
+
+try {
+  bom();
+} catch (er) {
+  a = er;
+  er = "dwq";
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('hoists variable declarations in return statements at the top of the body', () => {
     const example =
 `4 + b = ->
@@ -996,6 +1016,32 @@ catch err
   boom();
 } catch (err) {
   console.log("error");
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('long winded single line try statement with assignment', () => {
+    const example = `try [[], name, context] = expression.match(/\s*['"](.*?)['"](?:,\s*(.*))?\s*/)`;
+    const expected =
+`try {
+  var [[], name, context] = expression.match(/s*['"](.*?)['"](?:,s*(.*))?s*/);
+} catch (undefined) {}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('maps a simple try catch block', () => {
+    const example =
+`try
+  boom()
+catch err
+  bam = 'dw'
+  console.log 'boom'`;
+    const expected =
+`try {
+  boom();
+} catch (err) {
+  var bam = "dw";
+  console.log("boom");
 }`;
     expect(compile(example)).toEqual(expected);
   });
@@ -1514,5 +1560,50 @@ describe('while loops', () => {
 }`;
 
     expect(compile(example)).toEqual(expected);
+  });
+
+  it(`while loop with block`, () => {
+    const example =
+`while boom.length
+    say 'hi'`;
+    const expected =
+`while (boom.length) {
+  say("hi");
+}`;
+
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('say "boom" while (line = lines.shift()) isnt undefined', () => {
+    const example = `say "boom" while (line = lines.shift()) isnt undefined`;
+    const expected =
+`var line;
+
+while ((line = lines.shift()) !== undefined) {
+  say("boom");
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('while expressions', () => {
+    const example =
+`names = while a.length > 0
+      a.shift()`;
+    const expected =
+`var names = (function() {
+   var results;
+   results = [];
+   while (a.length > 0) {
+     results.push(a.shift());
+   }
+   return results;
+ })();`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
+describe('block regexes', () => {
+  it('simple one line regex', () => {
+    expect(compile(`///\+(#{ directives })(.*)///`)).toEqual('RegExp(("+(" + (directives) + ")(.*)"));');
   });
 });

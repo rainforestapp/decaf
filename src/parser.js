@@ -124,6 +124,8 @@ function mapValue(node, meta) {
     return b.identifier('undefined');
   } else if (type === 'Null') {
     return b.identifier('null');
+  } else if (type === 'Call') {
+    return mapCall(node.base, meta);
   } else if (type === 'Bool') {
     return mapBoolean(node, meta);
   } else if (type === 'Arr' && meta.left === true) {
@@ -854,9 +856,12 @@ function inParentScope(path, filter) {
   const statement = getStatement(path);
   const scope = jsc(path).closestScope().paths()[0];
   let statementsInScope;
+
   if (n.Program.check(scope.value)) {
     statementsInScope = scope.value.body;
-  } else if (n.FunctionExpression.check(scope.value) || n.ArrowFunctionExpression.check(scope.value)) {
+  } else if (n.FunctionExpression.check(scope.value) ||
+      n.ArrowFunctionExpression.check(scope.value) ||
+      n.CatchClause.check(scope.value)) {
     statementsInScope = scope.value.body.body;
   } else {
     throw new Error(`Can't recognize scope container of type ${scope.value.type}`);
@@ -887,6 +892,14 @@ function insertVariableDeclarations(ast) {
   )
   .filter(path => {
     const needle = {type: 'Identifier', name: path.value.left.name};
+
+    const catchClauseParam = get(path, 'parent.parent.parent.value.param');
+
+    if (get(path, 'parent.parent.parent.value.type') === 'CatchClause' &&
+      get(catchClauseParam, 'name') === needle.name) {
+      return false;
+    }
+
     const shadowedVariables = inParentScope(path, node => {
       if (n.VariableDeclaration.check(node)) {
         return findIndex(node.declarations, {id: needle}) > -1;
@@ -1173,6 +1186,10 @@ function mapThrowStatement(node, meta) {
   return b.throwStatement(mapExpression(node.expression, meta));
 }
 
+function mapWhileExpression(node, meta) {
+  return recast.parse(node.compile(meta)).program.body[0].expression;
+}
+
 function mapExpression(node, meta) {
   const type = node.constructor.name;
 
@@ -1190,6 +1207,8 @@ function mapExpression(node, meta) {
     return mapNewExpression(node, meta);
   } else if (type === 'Existence') {
     return mapExistentialExpression(node, meta);
+  } else if (type === 'While') {
+    return mapWhileExpression(node, meta);
   } else if (type === 'Switch') {
     return mapSwitchExpression(node, meta);
   } else if (type === 'Splat') {
