@@ -1043,7 +1043,7 @@ function mapForStatement(node, meta) {
     return b.forInStatement(
       b.variableDeclaration(
         'let',
-        [mapExpression(node.name, Object.assign({}, meta, { left: true }))]
+        [b.variableDeclarator(mapExpression(node.name, Object.assign({}, meta, { left: true })), null)]
       ),
       mapExpression(node.source, meta),
       mapBlockStatement(node.body, meta)

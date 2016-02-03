@@ -854,7 +854,6 @@ describe('ClassExpression', () => {
 };`;
       expect(compile(example)).toEqual(expected);
     });
-
   });
 
   describe('class methods can be called directly', () => {
@@ -1206,6 +1205,14 @@ describe('comprehensions', () => {
   eat(food);
 }`;
     expect(compile(example)).toEqual(expected);
+  });
+
+  it('a(b) for [a, b] in c', () => {
+    const expected =
+`for (let [a, b] in c) {
+  a(b);
+}`;
+    expect(compile('a(b) for [a, b] in c')).toEqual(expected);
   });
 
   it('say key, value for key, value of {a: 1}', () => {
