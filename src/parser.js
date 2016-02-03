@@ -3,6 +3,7 @@ import recast from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import findWhere from 'lodash/collection/findWhere';
+import last from 'lodash/array/last';
 import flatten from 'lodash/array/flatten';
 import pick from 'lodash/object/pick';
 import values from 'lodash/object/values';
@@ -357,6 +358,14 @@ function mapClassExpression(node, meta) {
 
 function mapClassDeclaration(node, meta) {
   let parent = null;
+
+  if (get(node, 'variable.properties.length') > 0) {
+    return b.expressionStatement(b.assignmentExpression(
+      '=',
+      mapExpression(node.variable),
+      mapClassExpression(Object.assign({}, node, {variable: last(node.variable.properties)}))
+    ));
+  }
 
   if (node.parent !== undefined && node.parent !== null) {
     parent = mapExpression(node.parent, meta);
