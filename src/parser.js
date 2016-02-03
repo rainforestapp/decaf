@@ -894,6 +894,34 @@ function inParentScope(path, filter) {
   ).concat(statements);
 }
 
+function insertSuperCall(path) {
+  const classMethods = get(path, 'value.body.body') || [];
+  const constructorIndex = findIndex(classMethods, {kind: 'constructor'});
+  if (constructorIndex > -1) {
+    const superCalls = jsc(classMethods[constructorIndex])
+      .find(jsc.CallExpression, {callee: {name: 'super'}})
+      .nodes();
+    if (superCalls.length < 1) {
+      classMethods[constructorIndex]
+        .value.body.body
+        .unshift(
+          b.expressionStatement(b.callExpression(b.identifier('super'), [])));
+    }
+  }
+}
+
+function insertSuperCalls(ast) {
+  jsc(ast)
+  .find(jsc.ClassDeclaration, path => get(path, 'superClass'))
+  .forEach(insertSuperCall);
+
+  jsc(ast)
+  .find(jsc.ClassExpression, path => get(path, 'superClass'))
+  .forEach(insertSuperCall);
+
+  return ast;
+}
+
 function insertVariableDeclarations(ast) {
   jsc(ast)
   .find(jsc.AssignmentExpression, node =>
@@ -1370,6 +1398,7 @@ export function compile(source, opts) {
     // hack because of double semicolon
     compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
     jsAst => recast.print(jsAst, opts),
+    insertSuperCalls,
     insertVariableDeclarations,
     transpile,
     coffeeParse);
