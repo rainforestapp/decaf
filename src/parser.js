@@ -564,19 +564,17 @@ function mapInArrayExpression(node, meta) {
 function extractAssignStatementsByArguments(nodes) {
   return nodes
     .map(node => node.type === 'AssignmentExpression' ? node.left : node)
-    .filter(node => {
-      return (node.type === 'MemberExpression' &&
-        (node.object.type === 'ThisExpression' || node.object.name === 'this'));
-    })
-    .map(node => {
-      return b.expressionStatement(
+    .filter(node => node.type === 'MemberExpression' &&
+        (node.object.type === 'ThisExpression' || node.object.name === 'this'))
+    .map(node =>
+      b.expressionStatement(
         b.assignmentExpression(
           '=',
           node,
           node.property
         )
-      );
-    });
+      )
+    );
 }
 
 function normalizeArguments(nodes) {
