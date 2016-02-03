@@ -293,6 +293,21 @@ describe('return statements', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('conditional statements with return in else block', () => {
+    const example =
+`if bom is true
+  console.log 'dwq'
+else
+  return false`;
+    const expected =
+`if (bom === true) {
+  console.log("dwq");
+} else {
+  return false;
+}`;
+    expect(compile(example)).toEqual(expected);
+  })
+
   it('a = ()-> return "boom"', () => {
     const example = 'a = ()-> return "boom"';
     const expected =

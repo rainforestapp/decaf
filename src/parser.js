@@ -447,7 +447,9 @@ function mapConditionalStatement(node, meta) {
     node.body && any(node.body.expressions, expr => expr.constructor.name === 'Throw') ||
     node.body && any(node.body.expressions, expr => expr.constructor.name === 'Return') ||
     node.body && node.body.expressions[0].constructor.name === 'If' ||
-    node.elseBody && node.elseBody.expressions[0].constructor.name === 'If'
+    node.elseBody && node.elseBody.expressions[0].constructor.name === 'If' ||
+    node.elseBody && any(node.elseBody.expressions, expr => expr.constructor.name === 'Throw') ||
+    node.elseBody && any(node.elseBody.expressions, expr => expr.constructor.name === 'Return')
   ) {
     return mapIfStatement(node, meta);
   }
