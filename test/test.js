@@ -635,6 +635,12 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('renders class declarations with MemberExpressions as class names', () => {
+    const example = `class Cool.Neat.Boom`;
+    const expected = `Cool.Neat.Boom = class Boom {};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('renders a simple class expression with a method', () => {
     const example =
 `class A
