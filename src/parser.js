@@ -9,6 +9,7 @@ import values from 'lodash/object/values';
 import findIndex from 'lodash/array/findIndex';
 import get from 'lodash/object/get';
 import compose from 'lodash/function/compose';
+import isArray from 'lodash/lang/isArray';
 import any from 'lodash/collection/any';
 import jsc from 'jscodeshift';
 
@@ -952,16 +953,20 @@ function insertVariableDeclarations(ast) {
   return ast;
 }
 
-function mapSwitchCase(node, meta) {
-  let [test] = node;
-  const [, block] = node;
-  if (test !== null) {
-    test = mapExpression(test, meta);
-  }
+function mapSwitchCases(cases, meta) {
+  return cases.reduce((arr, nodes) => {
+    const tests = isArray(nodes[0]) ? nodes[0] : [nodes[0]];
+    const switchCases = tests.filter(expr => !!expr).map(expr => b.switchCase(mapExpression(expr), []));
+    const consequent = mapBlockStatements(get(nodes, 1), meta);
 
-  return b.switchCase(
-    test,
-    mapBlockStatements(block, meta));
+    if (switchCases.length > 0) {
+      switchCases[switchCases.length - 1].consequent = consequent;
+    } else if (switchCases.length === 0 && !!nodes[1]) {
+      switchCases.push(b.switchCase(null, consequent));
+    }
+
+    return arr.concat(flatten(switchCases));
+  }, []);
 }
 
 function mapSwitchStatement(node, meta) {
@@ -977,7 +982,7 @@ function mapSwitchStatement(node, meta) {
 
   return b.switchStatement(
     mapExpression(node.subject, meta),
-    cases.map(expr => mapSwitchCase(expr, meta))
+    mapSwitchCases(cases, meta)
   );
 }
 
@@ -992,7 +997,11 @@ function mapForStatement(node, meta) {
       mapBlockStatement(node.body, meta)
     );
   } else if (node.object === true) {
-    const args = b.arrayPattern(pluck(node, ['index', 'name']).map(expr => mapExpression(expr, meta)));
+    const args =
+      b.arrayPattern(
+        pluck(node, ['index', 'name'])
+        .filter(expr => !!expr)
+        .map(expr => mapExpression(expr, meta)));
     return b.forInStatement(
       b.variableDeclaration(
         'let',

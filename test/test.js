@@ -1062,6 +1062,20 @@ default:
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('with double cases', () => {
+    const example =
+`switch name
+  when 'joe', 'anne' then say 'hi'`;
+    const expected =
+`switch (name) {
+case "joe":
+case "anne":
+  say("hi");
+  break;
+}`
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('switch expressions', () => {
@@ -1101,15 +1115,26 @@ describe('comprehensions', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('for of loop', () => {
+  it('say key, value for key, value of {a: 1}', () => {
     const example =
-`for key, value of {a: 1}
-      say key, value`;
+`say key, value for key, value of {a: 1}`;
     const expected =
 `for (let [key, value] in Object.entries({
   a: 1
 })) {
   say(key, value);
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('say key for key, value of {a: 1}', () => {
+    const example =
+`say key for key of {a: 1}`;
+    const expected =
+`for (let [key] in Object.entries({
+  a: 1
+})) {
+  say(key);
 }`;
     expect(compile(example)).toEqual(expected);
   });
