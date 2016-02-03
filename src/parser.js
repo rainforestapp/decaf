@@ -481,7 +481,7 @@ function mapTryCatchBlock(node, meta) {
 }
 
 function mapReturnStatement(node, meta) {
-  return b.returnStatement(mapExpression(node.expression, meta));
+  return b.returnStatement(node.expression ? mapExpression(node.expression, meta) : null);
 }
 
 function mapStatement(node, meta) {
