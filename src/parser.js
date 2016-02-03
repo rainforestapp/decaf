@@ -754,12 +754,12 @@ function transformToExpression(_node) {
 
 function lastReturnStatement(nodeList = []) {
   if (nodeList.length > 0) {
-    const last = nodeList.length - 1;
+    const lastIndex = nodeList.length - 1;
 
-    if (nodeList[last].type === 'IfStatement') {
-      nodeList[last] = addReturnStatementToIfBlocks(nodeList[last]);
+    if (nodeList[lastIndex].type === 'IfStatement') {
+      nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
     } else {
-      nodeList[last] =
+      nodeList[lastIndex] =
         b.returnStatement(
           transformToExpression(nodeList[nodeList.length - 1]));
     }
