@@ -4,6 +4,8 @@ import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import findWhere from 'lodash/collection/findWhere';
 import flatten from 'lodash/array/flatten';
+import pick from 'lodash/object/pick';
+import values from 'lodash/object/values';
 import findIndex from 'lodash/array/findIndex';
 import get from 'lodash/object/get';
 import compose from 'lodash/function/compose';
@@ -16,6 +18,10 @@ const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
 
 const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/;
+
+function pluck(obj, keys) {
+  return values(pick(obj, keys));
+}
 
 function mapBoolean(node) {
   if (node.base.val === 'true') {
@@ -983,6 +989,26 @@ function mapForStatement(node, meta) {
         [mapExpression(node.name, Object.assign({}, meta, { left: true }))]
       ),
       mapExpression(node.source, meta),
+      mapBlockStatement(node.body, meta)
+    );
+  } else if (node.object === true) {
+    const args = b.arrayPattern(pluck(node, ['index', 'name']).map(expr => mapExpression(expr, meta)));
+    return b.forInStatement(
+      b.variableDeclaration(
+        'let',
+        [
+          b.variableDeclarator(args, null),
+        ]
+      ),
+      b.memberExpression(
+        b.identifier('Object'),
+        b.callExpression(
+          b.identifier('entries'),
+          [
+            mapExpression(node.source, meta),
+          ]
+        )
+      ),
       mapBlockStatement(node.body, meta)
     );
   }
