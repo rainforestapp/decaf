@@ -120,6 +120,10 @@ describe('new Expressions', () => {
     expect(compile('new FooBar')).toEqual('new FooBar();');
   });
 
+  it(`new @collection.constructor`, () => {
+    expect(compile(`new @collection.constructor`)).toEqual('new this.collection.constructor();');
+  });
+
   it(`new FooBar('bobo')`, () => {
     expect(compile(`new FooBar('bobo')`)).toEqual(`new FooBar("bobo");`);
   });
@@ -306,7 +310,7 @@ else
   return false;
 }`;
     expect(compile(example)).toEqual(expected);
-  })
+  });
 
   it('a = ()-> return "boom"', () => {
     const example = 'a = ()-> return "boom"';
@@ -1088,7 +1092,7 @@ case "joe":
 case "anne":
   say("hi");
   break;
-}`
+}`;
     expect(compile(example)).toEqual(expected);
   });
 });

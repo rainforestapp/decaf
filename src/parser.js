@@ -1137,7 +1137,7 @@ function mapExistentialExpression(node, meta) {
 function mapNewExpression(node, meta) {
   const constructor = node.first || node.variable;
   const args = node.args ? mapArguments(node.args, meta) : [];
-  return b.newExpression(mapExpression(constructor), args);
+  return b.newExpression(mapExpression(constructor, meta), args);
 }
 
 function conditionalStatementAsExpression(node, meta) {
