@@ -213,13 +213,13 @@ describe('Existential Operator', () => {
 
   it('foo?.bar?', () => {
     const example = 'foo?.bar?';
-    const expected = '(typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;';
+    const expected = '((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;';
     expect(compile(example)).toEqual(expected);
   });
 
   it('yo = foo?.bar?', () => {
     const example = 'yo = foo?.bar?';
-    const expected = `var yo = (typeof foo !== "undefined" && foo !== null ? foo.bar : void 0) != null;`;
+    const expected = `var yo = ((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -768,6 +768,21 @@ describe('ClassExpression', () => {
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('assigns @ arguments of classMethods to this', ()=> {
+    const example =
+`class A.B
+  a: (@b = 'dwq') ->`;
+
+    const expected =
+`A.B = class B {
+  a(b = "dwq") {
+    this.b = b;
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
 
   it('assigns @ arguments with default values to this', ()=> {
     const example =
@@ -1638,14 +1653,28 @@ while ((line = lines.shift()) !== undefined) {
   a.shift()`;
     const expected =
 `var names = (function() {
-   var results;
-   results = [];
-   while (a.length > 0) {
-     results.push(a.shift());
-   }
-   return results;
- })();`;
+  var results;
+  results = [];
+
+  while (a.length > 0) {
+    results.push(a.shift());
+  }
+
+  return results;
+})();`;
     expect(compile(example)).toEqual(expected);
+  });
+});
+
+describe('anonymous class', () => {
+  it('uses coffeescript compiler', () => {
+    const expected =
+`var a = (function() {
+  function _Class() {}
+  return _Class;
+})();`;
+
+    expect(compile(`a = class`)).toEqual(expected);
   });
 });
 

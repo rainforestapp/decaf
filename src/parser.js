@@ -56,8 +56,8 @@ function mapMemberProperties(properties, meta) {
 }
 
 function mapMemberExpression(node, meta) {
-  if (findIndex(node.base.properties, {soak: true})) {
-    return recast.parse(node.compile(meta)).program.body[0].expression;
+  if (findIndex(node.base.properties, {soak: true}) > -1) {
+    return fallback(node, meta);
   }
   return mapMemberProperties([node.base, ...node.properties], meta);
 }
@@ -207,7 +207,7 @@ function mapArguments(args, meta) {
   });
 }
 
-function mapCall(node, meta = {}) {
+function mapCall(node, meta) {
   let left;
   const superMethodName = meta.superMethodName;
 
@@ -345,6 +345,14 @@ function mapClassBody(node, meta) {
 }
 
 function mapClassExpression(node, meta) {
+  // if this is an anonymous class expression fallback
+  // to the cs compiler
+  if (node.variable === undefined &&
+      node.parent === undefined &&
+      node.body.expressions.length < 1) {
+    return fallback(node, meta);
+  }
+
   let parent = null;
 
   if (node.parent !== undefined && node.parent !== null) {
@@ -364,7 +372,7 @@ function mapClassDeclaration(node, meta) {
   if (get(node, 'variable.properties.length') > 0) {
     return b.expressionStatement(b.assignmentExpression(
       '=',
-      mapExpression(node.variable),
+      mapExpression(node.variable, meta),
       mapClassExpression(Object.assign({}, node, {variable: last(node.variable.properties)}))
     ));
   }
@@ -556,16 +564,19 @@ function mapInArrayExpression(node, meta) {
 function extractAssignStatementsByArguments(nodes) {
   return nodes
     .map(node => node.type === 'AssignmentExpression' ? node.left : node)
-    .filter(node => node.type === 'MemberExpression' && node.object.type === 'ThisExpression')
-    .map(node =>
-      b.expressionStatement(
+    .filter(node => {
+      return (node.type === 'MemberExpression' &&
+        (node.object.type === 'ThisExpression' || node.object.name === 'this'));
+    })
+    .map(node => {
+      return b.expressionStatement(
         b.assignmentExpression(
           '=',
           node,
           node.property
         )
-      )
-    );
+      );
+    });
 }
 
 function normalizeArguments(nodes) {
@@ -579,7 +590,7 @@ function normalizeArguments(nodes) {
       );
     }
     if (node.type === 'MemberExpression' &&
-       node.object.type === 'ThisExpression') {
+       (node.object.type === 'ThisExpression' || node.object.name === 'this')) {
       return {type: 'Identifier', name: node.property.name};
     }
     return node;
@@ -730,7 +741,6 @@ function mapArgumentsWithExpansion(nodes, meta) {
 
   return statements;
 }
-
 
 function transformToExpression(_node) {
   let node = _node;
@@ -1180,10 +1190,14 @@ function mapSwitchExpression(node, meta) {
   );
 }
 
+function fallback(node, meta) {
+  const compiled = node.compile(meta);
+  return recast.parse(recast.prettyPrint(
+    recast.parse(compiled), meta.options)).program.body[0].expression;
+}
+
 function mapExistentialExpression(node, meta) {
-  return recast
-    .parse(node.compile(meta))
-    .program.body[0].expression;
+  return fallback(node, meta);
 }
 
 function mapNewExpression(node, meta) {
@@ -1217,7 +1231,7 @@ function conditionalStatementAsExpression(node, meta) {
 
 function mapWhileLoop(node, meta) {
   return b.whileStatement(
-    mapExpression(node.condition),
+    mapExpression(node.condition, meta),
     mapBlockStatement(node.body, meta));
 }
 
@@ -1226,7 +1240,7 @@ function mapThrowStatement(node, meta) {
 }
 
 function mapWhileExpression(node, meta) {
-  return recast.parse(node.compile(meta)).program.body[0].expression;
+  return fallback(node, meta);
 }
 
 function mapExpression(node, meta) {
@@ -1386,8 +1400,14 @@ function coffeeParse(source) {
 
 export function transpile(ast, meta) {
   if (meta === undefined) {
-    meta = {scope: new Scope(null, coffeeParse, null, []), indent: ' '};
+    meta = {};
   }
+
+  if (!meta.scope) {
+    meta.scope = new Scope(null, coffeeParse, null, []);
+    meta.indent = ' ';
+  }
+
   const program = mapBlockStatement(ast, meta, b.program);
   return program;
 }
@@ -1402,7 +1422,7 @@ export function compile(source, opts) {
     jsAst => recast.print(jsAst, opts),
     insertSuperCalls,
     insertVariableDeclarations,
-    transpile,
+    csAst => transpile(csAst, {options: opts}),
     coffeeParse);
 
   return _compile(source).code;
