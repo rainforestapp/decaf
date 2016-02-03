@@ -361,6 +361,24 @@ describe('return statements', () => {
   });
 });
 
+describe('parenthesized expressions', () => {
+  it('1 + (2 + 3) + 4', () => {
+    expect(compile('1 + (2 + 3) + 4')).toEqual('1 + (2 + 3) + 4;');
+  });
+
+  it(`foo('bar') unless a && b`, () => {
+    const example = `foo('bar') unless a && b`;
+    const expected = `(!(a && b) ? foo("bar") : undefined);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it(`foo('bar') if !(a && b && !(c && d))`, () => {
+    const example = `foo('bar') if !(a && b && !(c && d))`;
+    const expected = `(!(a && b && !(c && d)) ? foo("bar") : undefined);`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('assignment expressions', () => {
   it('assigns strings', () => {
     expect(compile('bam = "hello"')).toEqual('var bam = "hello";');

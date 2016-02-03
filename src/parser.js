@@ -1169,6 +1169,8 @@ function mapExpression(node, meta) {
     return mapMemberExpression(node, meta);
   } else if (type === 'If') {
     return conditionalStatementAsExpression(node, meta);
+  } else if (type === 'Parens') {
+    return b.parenthesizedExpression(mapExpression(node.body, meta));
   } else if (type === 'Try') {
     return mapTryExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {
