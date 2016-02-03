@@ -131,6 +131,8 @@ function mapValue(node, meta) {
     return mapBoolean(node, meta);
   } else if (type === 'Arr' && meta.left === true) {
     return mapArrayPattern(node.base, meta);
+  } else if (type === 'Obj' && meta.left === true) {
+    return mapObjectPattern(node.base.properties, meta);
   } else if (type === 'Arr') {
     return mapArrayExpression(node.base, meta);
   } else if (type === 'Obj') {
