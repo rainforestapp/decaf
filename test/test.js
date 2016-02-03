@@ -302,6 +302,15 @@ describe('return statements', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('a = ()-> return', () => {
+    const example = 'a = ()-> return';
+    const expected =
+`var a = function() {
+  return;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('a = ()-> return "boom" if b is 123', () => {
     const example = 'a = ()-> return "boom" if b is 123';
     const expected =
