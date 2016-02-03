@@ -1,5 +1,7 @@
 #!/usr/bin/env node
+/* eslint-disable */
 var program = require('commander');
+var chalk = require('chalk');
 var dir = require('node-dir');
 var join = require('path').join;
 var dirname = require('path').dirname;
@@ -12,6 +14,7 @@ program
   .version(require('../package.json').version)
   .usage('<path>... [options]')
   .description('<path> is coffeescript files or directory')
+  .option('-r, --replace', 'Replace files')
   .option('-p, --print', 'Print output')
   .parse(process.argv);
 
@@ -55,11 +58,19 @@ function runByFile(file, config) {
     }
     output.write(js);
 
+    if (config.replace) {
+      fs.unlinkSync(file);
+    }
+
     if (output !== process.stdout) {
-      console.log('Generate es6 file "%s" from "%s".', output.path, file);
+      if (config.replace) {
+        console.log(chalk.green('Replaced "%s" with file "%s".'), file, output.path);
+      } else {
+        console.log(chalk.green('Generate file "%s" from "%s".'), output.path, file);
+      }
     }
   } catch (e) {
-    console.log('Skipping path "%s" which parsed error.', file);
-    console.log(e.stack);
+    console.log(chalk.red('Skipping file "%s" because of error.'), file);
+    console.log(chalk.red(e.stack));
   }
 }
