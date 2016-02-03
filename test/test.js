@@ -366,6 +366,12 @@ describe('assignment expressions', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('@foo = a or b', () => {
+    const example = `@foo = a or b`;
+    const expected = `this.foo = a || b;`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('a = b = c = (d) -> a + b + c + d', () => {
     const example = `a = b = c = (d) -> a + b + c + d`;
     const expected =
@@ -1064,6 +1070,19 @@ describe('comprehensions', () => {
     const expected =
 `for (let food in ["toast", "cheese", "wine"]) {
   eat(food);
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('for of loop', () => {
+    const example =
+`for key, value of {a: 1}
+      say key, value`;
+    const expected =
+`for (let [key, value] in Object.entries({
+  a: 1
+})) {
+  say(key, value);
 }`;
     expect(compile(example)).toEqual(expected);
   });
