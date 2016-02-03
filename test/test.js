@@ -1588,7 +1588,7 @@ while ((line = lines.shift()) !== undefined) {
   it('while expressions', () => {
     const example =
 `names = while a.length > 0
-      a.shift()`;
+  a.shift()`;
     const expected =
 `var names = (function() {
    var results;
