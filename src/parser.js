@@ -467,6 +467,26 @@ function mapIfStatement(node, meta) {
   );
 }
 
+function isStatement(expr) {
+  const type = expr.constructor.name;
+  switch (type) {
+    case 'Literal':
+      if (expr.value === 'break') {
+        return true;
+      }
+      return false;
+    case 'Throw':
+    case 'For':
+    case 'While':
+    case 'Return':
+    case 'If':
+    case 'Break':
+      return true;
+    default:
+      return false;
+  }
+}
+
 function mapConditionalStatement(node, meta) {
   // If the conditional has more than one test
   // or more than one expression in either block we
@@ -475,13 +495,8 @@ function mapConditionalStatement(node, meta) {
   if (
     node.elseBody && node.elseBody.expressions.length > 1 ||
     node.body && node.body.expressions.length > 1 ||
-    node.body && any(node.body.expressions, expr => expr.constructor.name === 'Throw') ||
-    node.body && any(node.body.expressions, expr => expr.constructor.name === 'Return') ||
-    node.body && node.body.expressions[0].constructor.name === 'If' ||
-    node.elseBody && node.elseBody.expressions[0].constructor.name === 'If' ||
-    node.elseBody && any(node.elseBody.expressions, expr => expr.constructor.name === 'Throw') ||
-    node.elseBody && any(node.elseBody.expressions, expr => expr.constructor.name === 'Return')
-  ) {
+    node.body && any(node.body.expressions, expr => isStatement(expr)) ||
+    node.elseBody && any(node.elseBody.expressions, expr => isStatement(expr))) {
     return mapIfStatement(node, meta);
   }
 
