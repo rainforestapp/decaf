@@ -1247,6 +1247,8 @@ function mapExpression(node, meta) {
 
   if (node.properties && node.properties.length > 0) {
     return mapMemberExpression(node, meta);
+  } else if (type === 'Range') {
+    return mapRange(node, meta);
   } else if (type === 'If') {
     return conditionalStatementAsExpression(node, meta);
   } else if (type === 'Parens' && get(node, 'body.expressions[0]')) {

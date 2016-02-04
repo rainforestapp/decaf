@@ -1328,14 +1328,14 @@ describe('comprehensions', () => {
 });
 
 describe('ranges', () => {
-  it('simple ranges', () => {
+  it('[1...10]', () => {
     const example = `[1...10]`;
     const expected = `[1, 2, 3, 4, 5, 6, 7, 8, 9];`;
 
     expect(compile(example)).toEqual(expected);
   });
 
-  it('uses coffeescript parser for generated ranges', () => {
+  it('[1...bom]', () => {
     const example = `[1...bom]`;
     const expected =
 `(function() {
@@ -1349,6 +1349,11 @@ describe('ranges', () => {
 }).apply(this);`;
 
     expect(compile(example)).toEqual(expected);
+  });
+
+  it(`[ 0 .. 15 ].join(',')`, () => {
+    const example = `[ 0 .. 15 ].join(',')`;
+    expect(compile(example)).toEqual(`[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].join(",");`);
   });
 });
 
