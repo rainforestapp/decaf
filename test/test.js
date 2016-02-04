@@ -1535,6 +1535,16 @@ describe('conditional expressions', () => {
     expect(compile(`loop break if rand isnt ord`)).toEqual(expected);
   });
 
+  it(`loop continue if rand isnt ord`, () => {
+    const expected =
+`while (true) {
+  if (rand !== ord) {
+    continue;
+  }
+}`;
+    expect(compile(`loop continue if rand isnt ord`)).toEqual(expected);
+  });
+
   it(`nested while loops`, () => {
     const expected =
 `if (rand !== ord) {
@@ -1802,5 +1812,4 @@ describe('call expressions', () => {
 })();`;
     expect(compile(`(()-> say 'hi')()`)).toEqual(expected);
   });
-
 });
