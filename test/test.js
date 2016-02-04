@@ -1525,6 +1525,41 @@ describe('conditional expressions', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it(`loop break if rand isnt ord`, () => {
+    const expected =
+`while (true) {
+  if (rand !== ord) {
+    break;
+  }
+}`;
+    expect(compile(`loop break if rand isnt ord`)).toEqual(expected);
+  });
+
+  it(`nested while loops`, () => {
+    const expected =
+`if (rand !== ord) {
+  while (true) {
+    while (true) {
+      say("hi");
+    }
+  }
+}`;
+    expect(compile(`loop loop say 'hi' if rand isnt ord`)).toEqual(expected);
+  });
+
+  it(`for in while loop`, () => {
+    const expected =
+`if (rand !== ord) {
+  while (true) {
+    for (let a in c) {
+      say("hi");
+    }
+  }
+}`;
+    expect(compile(`loop say 'hi' for a in c if rand isnt ord`)).toEqual(expected);
+  });
+
+
   it(`console.log "boom" if "a" of b`, () => {
     const example = `console.log "boom" if "a" of b`;
     const expected = `("a" in b ? console.log("boom") : undefined);`;
@@ -1755,4 +1790,17 @@ describe('call expressions', () => {
   it(`[a, 'b'].join('/')`, ()=> {
     expect(compile(`[a, 'b'].join('/')`)).toEqual(`[a, "b"].join("/");`);
   });
+
+  it(`a().b().c()`, () => {
+    expect(compile(`a().b().c()`)).toEqual(`a().b().c();`);
+  });
+
+  it(`(()-> say 'hi')()`, () => {
+    const expected =
+`(function() {
+  return say("hi");
+})();`;
+    expect(compile(`(()-> say 'hi')()`)).toEqual(expected);
+  });
+
 });
