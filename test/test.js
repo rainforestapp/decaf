@@ -390,7 +390,7 @@ describe('parenthesized expressions', () => {
   });
 
   it('(params[k] or (params[k] = [])).push v', () => {
-    expect(compile(`(params[k] or (params[k] = [])).push v`)).toEqual(`(params.k || (params.k = [])).push(v);`);
+    expect(compile(`(params[k] or (params[k] = [])).push v`)).toEqual(`(params[k] || (params[k] = [])).push(v);`);
   });
 
   it(`foo('bar') unless a && b`, () => {
