@@ -749,6 +749,34 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('static class methods', () => {
+    const example =
+`class A
+  @b: -> say 'hi'
+`;
+    const expected =
+`class A {
+  static b() {
+    return say("hi");
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('renders bound static class methods exactly the same as normal', () => {
+    const example =
+`class A
+  @b: => say 'hi'
+`;
+    const expected =
+`class A {
+  static b() {
+    return say("hi");
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('maps @ to this', () => {
     const example =
 `class A extends B
