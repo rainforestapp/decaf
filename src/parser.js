@@ -470,20 +470,20 @@ function mapIfStatement(node, meta) {
 function isStatement(expr) {
   const type = expr.constructor.name;
   switch (type) {
-  case 'Literal':
-    if (expr.value === 'break') {
+    case 'Literal':
+      if (expr.value === 'break') {
+        return true;
+      }
+      return false;
+    case 'Throw':
+    case 'For':
+    case 'While':
+    case 'Return':
+    case 'If':
+    case 'Break':
       return true;
-    }
-    return false;
-  case 'Throw':
-  case 'For':
-  case 'While':
-  case 'Return':
-  case 'If':
-  case 'Break':
-    return true;
-  default:
-    return false;
+    default:
+      return false;
   }
 }
 
