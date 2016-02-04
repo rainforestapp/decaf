@@ -385,6 +385,15 @@ describe('parenthesized expressions', () => {
     expect(compile('1 + (2 + 3) + 4')).toEqual('1 + (2 + 3) + 4;');
   });
 
+  it('decPart = (decPart + "00").substr(0, 2)', ()=> {
+    expect(compile(
+  `decPart = (decPart + "00").substr(0, 2)`)).toEqual(`var decPart = (decPart + "00").substr(0, 2);`);
+  });
+
+  it('(params[k] or (params[k] = [])).push v', () => {
+    expect(compile(`(params[k] or (params[k] = [])).push v`)).toEqual(`(params.k || (params.k = [])).push(v);`);
+  });
+
   it(`foo('bar') unless a && b`, () => {
     const example = `foo('bar') unless a && b`;
     const expected = `(!(a && b) ? foo("bar") : undefined);`;
@@ -1681,5 +1690,11 @@ describe('anonymous class', () => {
 describe('block regexes', () => {
   it('simple one line regex', () => {
     expect(compile(`///\+(#{ directives })(.*)///`)).toEqual('RegExp(("+(" + (directives) + ")(.*)"));');
+  });
+});
+
+describe('call expressions', () => {
+  it(`[a, 'b'].join('/')`, ()=> {
+    expect(compile(`[a, 'b'].join('/')`)).toEqual(`[a, "b"].join("/");`);
   });
 });

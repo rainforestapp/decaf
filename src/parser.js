@@ -169,7 +169,8 @@ function mapOp(node, meta) {
   if (node.operator === '++' || node.operator === '--') {
     return b.updateExpression(
       node.operator,
-      mapExpression(node.first, meta), !node.flip);
+      mapExpression(node.first, meta),
+      !node.flip);
   }
 
   if (!node.second) {
@@ -1248,8 +1249,12 @@ function mapExpression(node, meta) {
     return mapMemberExpression(node, meta);
   } else if (type === 'If') {
     return conditionalStatementAsExpression(node, meta);
+  } else if (type === 'Parens' && get(node, 'body.expressions[0]')) {
+    return b.parenthesizedExpression(mapExpression(get(node, 'body.expressions[0]'), meta));
   } else if (type === 'Parens') {
     return b.parenthesizedExpression(mapExpression(node.body, meta));
+  } else if (type === 'Arr') {
+    return mapValue({base: node}, meta);
   } else if (type === 'Try') {
     return mapTryExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {
