@@ -42,8 +42,9 @@ function stringToRegex(inputstring) {
 
 function mapMemberProperties(properties, meta) {
   const restProperties = properties.slice(0, properties.length - 1);
+  const isIndex = properties[properties.length - 1].constructor.name === 'Index';
   const right = mapExpression(properties[properties.length - 1], meta);
-  const isComputed = right.type === 'Literal';
+  const isComputed = (right.type === 'Literal' || isIndex);
   let left;
 
   if (restProperties.length === 1) {

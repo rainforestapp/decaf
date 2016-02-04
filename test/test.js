@@ -45,7 +45,6 @@ describe('Values', () => {
     expect(compile('false')).toEqual('false;');
   });
 
-
   it('undefined', () => {
     expect(compile('undefined')).toEqual('undefined;');
   });
@@ -391,7 +390,7 @@ describe('parenthesized expressions', () => {
   });
 
   it('(params[k] or (params[k] = [])).push v', () => {
-    expect(compile(`(params[k] or (params[k] = [])).push v`)).toEqual(`(params.k || (params.k = [])).push(v);`);
+    expect(compile(`(params[k] or (params[k] = [])).push v`)).toEqual(`(params[k] || (params[k] = [])).push(v);`);
   });
 
   it(`foo('bar') unless a && b`, () => {
@@ -1689,6 +1688,32 @@ describe('anonymous class', () => {
 })();`;
 
     expect(compile(`a = class`)).toEqual(expected);
+  });
+});
+
+describe('MemberExpressions', () => {
+  it('one[two]', () => {
+    expect(compile('one[two]')).toEqual('one[two];');
+  });
+
+  it('one.two', () => {
+    expect(compile('one.two')).toEqual('one.two;');
+  });
+
+  it('one[two.three]', () => {
+    expect(compile('one[two.three]')).toEqual('one[two.three];');
+  });
+
+  it('one[two[three]]', () => {
+    expect(compile('one[two[three]]')).toEqual('one[two[three]];');
+  });
+
+  it('one.two[three.four[five]]', () => {
+    expect(compile('one.two[three.four[five]]')).toEqual('one.two[three.four[five]];');
+  });
+
+  it('one[two + 2][three.four["five"]]', () => {
+    expect(compile('one[two + 2][three.four["five"]]')).toEqual('one[two + 2][three.four["five"]];');
   });
 });
 
