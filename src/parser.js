@@ -244,6 +244,12 @@ function mapClassProperty(node, meta) {
 function mapClassBodyElement(node, meta) {
   const superMethodName = node.variable.base.value;
   let elementType = 'method';
+  let isStatic = false;
+
+  if (node.variable.this === true) {
+    isStatic = true;
+    node.variable = get(node, 'variable.properties[0].name');
+  }
 
   if (node.constructor.name === 'Assign' &&
       node.value && node.value.constructor.name !== 'Code') {
@@ -262,7 +268,9 @@ function mapClassBodyElement(node, meta) {
   return b.methodDefinition(
     elementType,
     mapExpression(node.variable, _meta),
-    mapExpression(node.value, _meta));
+    mapExpression(node.value, _meta),
+    isStatic
+  );
 }
 
 function getBoundMethodNames(classElements, meta) {
@@ -270,7 +278,7 @@ function getBoundMethodNames(classElements, meta) {
       .filter(el => el.base && el.base.properties)
       .map(el => el.base.properties)
     )
-    .filter(el =>
+    .filter(el => get(el, 'variable.this') !== true &&
       el.value.constructor.name === 'Code' &&
         el.value.bound === true
     ).map(el => mapExpression(el.variable, meta));
