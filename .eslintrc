@@ -14,7 +14,8 @@
     "object-curly-spacing": 0,
     "max-len": [2, 120, 2],
     "no-param-reassign": 0,
-    "arrow-parens": [2, "as-needed"]
+    "arrow-parens": [2, "as-needed"],
+    "indent": [2, 2, {"SwitchCase": 1}]
   },
   "plugins": [
     "babel"

@@ -547,6 +547,132 @@ bam = "bye";`;
     expect(compile(example)).toEqual(expected);
   });
 
+  it('declares variables in in class methods if they aren\'t shadowed by method parameters', () => {
+    const example =
+`class A extends B
+  a: (a) ->
+    a = 'boom'
+
+  b: (b = 123) ->
+
+  @c = (c = 'hello') ->
+    c + 'world'`;
+    const expected =
+`class A extends B {
+  a(a) {
+    return a = "boom";
+  }
+
+  b(b = 123) {}
+
+  static c = function(c = "hello") {
+    return c + "world";
+  };
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+
+  it('declares variables in class methods', () => {
+    const example =
+`class A extends B
+  @a: ->
+    a = 'boom'
+
+  b: ->
+    c = 'yo'
+
+  @c = =>
+    d = 'boom'`;
+    const expected =
+`class A extends B {
+  static a() {
+    var a;
+    return a = "boom";
+  }
+
+  b() {
+    var c;
+    return c = "yo";
+  }
+
+  static c = () => {
+    var d;
+    return d = "boom";
+  };
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('declares variables in class methods only when not shadowed', () => {
+    const example =
+`a = 'hey'
+c = 'yo'
+class A extends B
+  @a: ->
+    a = 'boom'
+    d = 'bom'
+
+  b: ->
+    c = 'yo'
+
+  @c = =>
+    d = 'boom'`;
+    const expected =
+`var a = "hey";
+var c = "yo";
+
+class A extends B {
+  static a() {
+    var d;
+    a = "boom";
+    return d = "bom";
+  }
+
+  b() {
+    return c = "yo";
+  }
+
+  static c = () => {
+    var d;
+    return d = "boom";
+  };
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('declares variables nested class methods only when not shadowed', () => {
+    const example =
+`a = 'hey'
+c = 'yo'
+class A extends B
+  @a: ->
+    a = 'boom'
+    fn = () ->
+      a = 'yo'
+      e = 'boom'
+    d = 'bom'`;
+    const expected =
+`var a = "hey";
+var c = "yo";
+
+class A extends B {
+  static a() {
+    var d;
+    a = "boom";
+
+    var fn = function() {
+      var e;
+      a = "yo";
+      return e = "boom";
+    };
+
+    return d = "bom";
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('assigns big objects', () => {
     const example =
 `b =
@@ -808,11 +934,11 @@ describe('ClassExpression', () => {
   it('assigns @ arguments of classMethods to this', ()=> {
     const example =
 `class A.B
-  a: (@b = 'dwq') ->`;
+  a: (@b = 'hello there lovely old world') ->`;
 
     const expected =
 `A.B = class B {
-  a(b = "dwq") {
+  a(b = "hello there lovely old world") {
     this.b = b;
   }
 };`;
@@ -1802,5 +1928,4 @@ describe('call expressions', () => {
 })();`;
     expect(compile(`(()-> say 'hi')()`)).toEqual(expected);
   });
-
 });
