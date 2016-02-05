@@ -1362,9 +1362,9 @@ function mapAssignmentExpression(node, meta) {
       variable,
       assignment
     );
-  } else {
-    assignment.operator = node.context || node.operator || '=';
   }
+
+  assignment.operator = node.context || node.operator || '=';
 
   return assignment;
 }
