@@ -491,7 +491,7 @@ function mapConditionalStatement(node, meta) {
   // If the conditional has more than one test
   // or more than one expression in either block we
   // create an if statement otherwise we use a conditional
-  // expression (this is all just for readability)
+  // expression
   if (
     node.elseBody && node.elseBody.expressions.length > 1 ||
     node.body && node.body.expressions.length > 1 ||
@@ -977,7 +977,10 @@ function insertVariableDeclarations(ast) {
         return findIndex(node.declarations, {id: needle}) > -1;
       }
 
-      if (n.MethodDefinition.check(node) && node.value && findIndex(node.value, {left: needle})) {
+      if ((n.MethodDefinition.check(node) || n.FunctionExpression.check(node.value)) &&
+          node.value &&
+          (findIndex(node.value.params, {left: needle}) > -1 ||
+          findIndex(node.value.params, needle)) > -1) {
         return true;
       }
 
