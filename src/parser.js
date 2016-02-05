@@ -960,7 +960,8 @@ function insertSuperCalls(ast) {
 function insertVariableDeclarations(ast) {
   jsc(ast)
   .find(jsc.AssignmentExpression, node =>
-    n.MemberExpression.check(node.left) !== true
+    n.MemberExpression.check(node.left) !== true &&
+    get(node, 'operator') === '='
   )
   .filter(path => {
     const needle = {type: 'Identifier', name: path.value.left.name};
@@ -1355,14 +1356,14 @@ function mapAssignmentExpression(node, meta) {
 
   if (node.context === '||=') {
     return b.logicalExpression('||', variable, assignment);
-  }
-
-  if (node.context === '?=') {
+  } else if (node.context === '?=') {
     return b.conditionalExpression(
       b.binaryExpression('!=', variable, b.identifier('null')),
       variable,
       assignment
     );
+  } else {
+    assignment.operator = node.context || node.operator || '=';
   }
 
   return assignment;
