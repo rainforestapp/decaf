@@ -1969,3 +1969,49 @@ describe('call expressions', () => {
     expect(compile(`(()-> say 'hi')()`)).toEqual(expected);
   });
 });
+
+describe('compound assignments', () => {
+  it(`a += 1`, ()=> {
+    expect(compile(`a += 1`)).toEqual(`a += 1;`);
+  });
+
+  it(`a &= 1`, ()=> {
+    expect(compile(`a &= 1`)).toEqual(`a &= 1;`);
+  });
+
+  it(`a |= 1`, ()=> {
+    expect(compile(`a |= 1`)).toEqual(`a |= 1;`);
+  });
+
+  it(`a ^= 1`, ()=> {
+    expect(compile(`a ^= 1`)).toEqual(`a ^= 1;`);
+  });
+
+  it(`a /= 1`, ()=> {
+    expect(compile(`a /= 1`)).toEqual(`a /= 1;`);
+  });
+
+  it(`a <<= 1`, ()=> {
+    expect(compile(`a <<= 1`)).toEqual(`a <<= 1;`);
+  });
+
+  it(`a %= 1`, ()=> {
+    expect(compile(`a %= 1`)).toEqual(`a %= 1;`);
+  });
+
+  it(`a *= 1`, ()=> {
+    expect(compile(`a *= 1`)).toEqual(`a *= 1;`);
+  });
+
+  it(`a >>= 1`, ()=> {
+    expect(compile(`a >>= 1`)).toEqual(`a >>= 1;`);
+  });
+
+  it(`a -= 1`, ()=> {
+    expect(compile(`a -= 1`)).toEqual(`a -= 1;`);
+  });
+
+  it(`a >>>= 1`, ()=> {
+    expect(compile(`a >>>= 1`)).toEqual(`a >>>= 1;`);
+  });
+});
