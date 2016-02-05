@@ -1469,13 +1469,39 @@ describe('comprehensions', () => {
 }).map(x => {
   return x;
 }));`;
-
     expect(compile(example)).toEqual(expected);
   });
 
   it(`"b" of a`, () => {
     const example = `"b" of a`;
     const expected = `"b" in a;`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('for loop in class method with MemberExpression name', () => {
+    const example =
+`class A.B
+  c: ->
+    for d in [0..e]
+      d`;
+    const expected =
+`A.B = class B {
+  c() {
+    return (() => {
+      for (let d in (function() {
+          var results = [];
+
+          for (var i = 0; (0 <= e ? i <= e : i >= e); (0 <= e ? i++ : i--)) {
+              results.push(i);
+          }
+
+          return results;
+      }).apply(this)) {
+        d;
+      }
+    })();
+  }
+};`;
     expect(compile(example)).toEqual(expected);
   });
 });
@@ -1660,6 +1686,10 @@ describe('conditional expressions', () => {
 }`;
     expect(compile(`loop break if rand isnt ord`)).toEqual(expected);
   });
+
+  //  it.only(`a ? b`, () => {
+  //    expect(compile(`a ? b'`)).toEqual(``);
+  //  });
 
   it(`loop continue if rand isnt ord`, () => {
     const expected =
