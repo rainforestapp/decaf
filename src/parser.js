@@ -471,7 +471,7 @@ function isStatement(expr) {
   const type = expr.constructor.name;
   switch (type) {
     case 'Literal':
-      if (expr.value === 'break') {
+      if (expr.value === 'break' || expr.value === 'continue') {
         return true;
       }
       return false;
