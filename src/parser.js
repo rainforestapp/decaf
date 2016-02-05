@@ -147,8 +147,9 @@ function mapValue(node, meta) {
 
 function mapOp(node, meta) {
   const {operator} = node;
-  if (node.operator === '%%' && node.second) {
-    const op = b.binaryExpression(
+
+  if (operator === '%%' && node.second) {
+    return b.binaryExpression(
       '%',
       b.parenthesizedExpression(
         b.binaryExpression(
@@ -163,32 +164,30 @@ function mapOp(node, meta) {
       ),
       mapExpression(node.second, meta)
     );
-    return op;
   }
 
-
-  if (node.operator === '++' || node.operator === '--') {
+  if (operator === '++' || operator === '--') {
     return b.updateExpression(
-      node.operator,
+      operator,
       mapExpression(node.first, meta),
       !node.flip);
   }
 
   if (!node.second) {
     return b.unaryExpression(
-      node.operator,
+      operator,
       mapExpression(node.first, meta));
   }
 
   if (operator === '||' || operator === '&&') {
     return b.logicalExpression(
-      node.operator,
+      operator,
       mapExpression(node.first, meta),
       mapExpression(node.second, meta));
   }
 
   return b.binaryExpression(
-    node.operator,
+    operator,
     mapExpression(node.first, meta),
     mapExpression(node.second, meta));
 }
@@ -383,7 +382,7 @@ function mapClassDeclaration(node, meta) {
     return b.expressionStatement(b.assignmentExpression(
       '=',
       mapExpression(node.variable, meta),
-      mapClassExpression(Object.assign({}, node, {variable: last(node.variable.properties)}))
+      mapClassExpression(Object.assign({}, node, {variable: last(node.variable.properties)}), meta)
     ));
   }
 
@@ -492,6 +491,7 @@ function mapConditionalStatement(node, meta) {
   // or more than one expression in either block we
   // create an if statement otherwise we use a conditional
   // expression
+
   if (
     node.elseBody && node.elseBody.expressions.length > 1 ||
     node.body && node.body.expressions.length > 1 ||
