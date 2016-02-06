@@ -1970,6 +1970,12 @@ describe('call expressions', () => {
   });
 });
 
+// describe('extends operator', () => {
+//   it(`compiles to Object.assign`, () => {
+//     it(`a`)
+//   });
+// });
+
 describe('compound assignments', () => {
   it(`a += 1`, ()=> {
     expect(compile(`a += 1`)).toEqual(`a += 1;`);
@@ -2014,4 +2020,28 @@ describe('compound assignments', () => {
   it(`a >>>= 1`, ()=> {
     expect(compile(`a >>>= 1`)).toEqual(`a >>>= 1;`);
   });
+});
+
+
+it('Generator functions', () => {
+  const example =
+`perfectSquares = ->
+  num = 0
+  loop
+    num += 1
+    yield num * num
+
+window.ps or= perfectSquares()`;
+  const expected =
+`var perfectSquares = function*() {
+  var num = 0;
+
+  while (true) {
+    num += 1;
+    yield num * num;
+  }
+};
+
+window.ps || (window.ps = perfectSquares());`;
+  expect(compile(example)).toEqual(expected);
 });
