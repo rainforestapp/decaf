@@ -1455,7 +1455,7 @@ export function transpile(ast, meta) {
   return program;
 }
 
-export function compile(source, opts) {
+export function compile(source, opts, parse = coffeeParse) {
   const doubleSemicolon = /\;+/g;
   opts = opts || {tabWidth: 2, quote: 'double'};
 
@@ -1466,7 +1466,7 @@ export function compile(source, opts) {
     insertSuperCalls,
     insertVariableDeclarations,
     csAst => transpile(csAst, {options: opts}),
-    coffeeParse);
+    parse);
 
   return _compile(source).code;
 }
