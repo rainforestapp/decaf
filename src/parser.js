@@ -838,6 +838,7 @@ function mapFunction(node, meta) {
   //   bound: Boolean
   // }
   let args = [];
+  const isGenerator = node.isGenerator;
 
   // setupStatements will be appended at the top of the function
   // block. It's used to add behaviour that would be impossible to
@@ -874,7 +875,10 @@ function mapFunction(node, meta) {
   // solution here
   setupStatements = setupStatements.concat(extractAssignStatementsByArguments(args, meta));
 
-  const block = addReturnStatementToBlock(mapBlockStatement(node.body, meta), meta);
+  let block = mapBlockStatement(node.body, meta);
+  if (isGenerator === false) {
+    block = addReturnStatementToBlock(block, meta);
+  }
 
   block.body = setupStatements.concat(block.body);
   args = normalizeArguments(args, meta);
@@ -883,7 +887,7 @@ function mapFunction(node, meta) {
     return b.arrowFunctionExpression(args, block);
   }
 
-  return b.functionExpression(null, args, block);
+  return b.functionExpression(null, args, block, isGenerator);
 }
 
 function getStatement(node) {
@@ -1270,6 +1274,10 @@ function mapWhileExpression(node, meta) {
   return fallback(node, meta);
 }
 
+function mapYieldExpression(node, meta) {
+  return b.yieldExpression(mapExpression(node.first, meta));
+}
+
 function mapExpression(node, meta) {
   const type = node.constructor.name;
 
@@ -1289,6 +1297,8 @@ function mapExpression(node, meta) {
     return mapTryExpression(node, meta);
   } else if (type === 'Call' && node.isNew === true) {
     return mapNewExpression(node, meta);
+  } else if (type === 'Op' && node.operator === 'yield') {
+    return mapYieldExpression(node, meta);
   } else if (type === 'Op' && node.operator === 'new') {
     return mapNewExpression(node, meta);
   } else if (type === 'Existence') {
