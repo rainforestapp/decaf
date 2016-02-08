@@ -876,7 +876,7 @@ function mapFunction(node, meta) {
   setupStatements = setupStatements.concat(extractAssignStatementsByArguments(args, meta));
 
   let block = mapBlockStatement(node.body, meta);
-  if (isGenerator === false) {
+  if (isGenerator === false && meta.superMethodName !== 'constructor') {
     block = addReturnStatementToBlock(block, meta);
   }
 
