@@ -917,6 +917,20 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('doesn\'t automatically add a return statement to a constructor', () => {
+    const example =
+`class A
+  constructor: ->
+    a + 'b'`;
+    const expected =
+`class A {
+  constructor() {
+    a + "b";
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('assigns @ arguments to this', ()=> {
     const example =
 `class A
@@ -971,7 +985,7 @@ describe('ClassExpression', () => {
       const expected =
 `class A {
   constructor() {
-    return super("boom");
+    super("boom");
   }
 }`;
       expect(compile(example)).toEqual(expected);
