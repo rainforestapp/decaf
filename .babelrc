@@ -1,5 +1,5 @@
 {
   "sourceMaps": "true",
   "presets": ["es2015"],
-  "plugins": ["transform-object-assign"]
+  "plugins": ["transform-object-assign", "babel-plugin-typecheck"]
 }

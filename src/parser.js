@@ -1,5 +1,6 @@
+/* @flow */
 import {builders as b, namedTypes as n} from 'ast-types';
-import recast from 'recast';
+import {parse, print, prettyPrint} from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import findWhere from 'lodash/collection/findWhere';
@@ -25,7 +26,58 @@ function pluck(obj, keys) {
   return values(pick(obj, keys));
 }
 
-function mapBoolean(node) {
+type CBody = {
+  expressions: CNodeList;
+}
+
+type CBase = {
+  val: any;
+  value: any;
+  base: CBase;
+  soak: boolean;
+  isSuper: boolean;
+  variable: CNode;
+  properties: CBaseList;
+  objects: CBaseList;
+  compile: function;
+  body: CBody;
+}
+
+type CArg = {
+  name: CBase;
+}
+
+type CArgList = Array<CArg|CNode>
+
+type CRange = {
+  range: {
+    from: CNode;
+    to: CNode;
+  }
+}
+
+type CNode = {
+  base: CBase;
+  properties: CBaseList;
+  objects: CBaseList;
+  compile: function;
+}
+
+type JSNode = {
+  type: string;
+}
+
+type CNodeList = Array<CNode>;
+type CBaseList = Array<CBase>;
+
+type COp = {
+  operator: string;
+  first: CNode;
+  second: CNode;
+  flip: boolean;
+}
+
+function mapBoolean(node: CNode) {
   if (node.base.val === 'true') {
     return b.literal(true);
   } else if (node.base.val === 'false') {
@@ -40,30 +92,31 @@ function stringToRegex(inputstring) {
   return new RegExp(match[1], match[2]);
 }
 
-function mapMemberProperties(properties, meta) {
-  const restProperties = properties.slice(0, properties.length - 1);
-  const isIndex = properties[properties.length - 1].constructor.name === 'Index';
-  const right = mapExpression(properties[properties.length - 1], meta);
+function mapMemberProperties(properties: CBaseList, meta: Object) {
+  const head = properties.slice(0, properties.length - 1);
+  const lastProperty = last(properties);
+  const isIndex = lastProperty.constructor.name === 'Index';
+  const right = mapExpression(lastProperty, meta);
   const isComputed = (right.type === 'Literal' || isIndex);
   let left;
 
-  if (restProperties.length === 1) {
-    left = mapExpression(restProperties[0], meta);
+  if (head.length === 1) {
+    left = mapExpression(head[0], meta);
   } else {
-    left = mapMemberProperties(restProperties, meta);
+    left = mapMemberProperties(head, meta);
   }
 
   return b.memberExpression(left, right, isComputed);
 }
 
-function mapMemberExpression(node, meta) {
+function mapMemberExpression(node: CNode, meta: Object) {
   if (findIndex(node.base.properties, {soak: true}) > -1) {
     return fallback(node, meta);
   }
   return mapMemberProperties([node.base, ...node.properties], meta);
 }
 
-function mapLiteral(node) {
+function mapLiteral(node: CNode) {
   let value;
   value = node.base.value;
 
@@ -80,14 +133,14 @@ function mapLiteral(node) {
   return b.identifier(value);
 }
 
-function mapKey(node) {
+function mapKey(node: CNode) {
   const type = node.base.constructor.name;
   if (type === 'Literal') {
     return b.identifier(node.base.value);
   }
 }
 
-function mapObjectExpression(node, meta) {
+function mapObjectExpression(node: CNode, meta: Object) {
   return b.objectExpression(node.base.properties.map(property =>
     b.property(
       'init',
@@ -96,16 +149,16 @@ function mapObjectExpression(node, meta) {
   ));
 }
 
-function mapArrayExpression(node, meta) {
+function mapArrayExpression(node: CNode, meta: Object) {
   return b.arrayExpression(node.objects.map(expr => mapExpression(expr, meta)));
 }
 
-function mapRange(node, meta) {
-  const compiledRange = recast.parse(recast.prettyPrint(recast.parse(node.compile(meta)))).program.body[0];
+function mapRange(node: CNode, meta: Object) {
+  const compiledRange = parse(prettyPrint(parse(node.compile(meta)))).program.body[0];
   return compiledRange.expression;
 }
 
-function mapSlice(node, meta) {
+function mapSlice(node: CRange, meta: Object) {
   return b.callExpression(
     b.identifier('slice'),
     [
@@ -115,7 +168,7 @@ function mapSlice(node, meta) {
   );
 }
 
-function mapValue(node, meta) {
+function mapValue(node: CNode, meta: Object) {
   const type = node.base.constructor.name;
 
   if (type === 'Literal') {
@@ -145,7 +198,7 @@ function mapValue(node, meta) {
   throw new Error(`can't convert node of type: ${type} to value - not recognized`);
 }
 
-function mapOp(node, meta) {
+function mapOp(node: COp, meta: Object) {
   const {operator} = node;
 
   if (operator === '%%' && node.second) {
@@ -192,7 +245,7 @@ function mapOp(node, meta) {
     mapExpression(node.second, meta));
 }
 
-function mapArguments(args, meta) {
+function mapArguments(args: CArgList, meta: Object) {
   return args.map(arg => {
     let type;
     if (arg.name && arg.name.constructor) {
@@ -208,13 +261,14 @@ function mapArguments(args, meta) {
   });
 }
 
-function mapCall(node, meta) {
+function mapCall(node: CBase, meta: Object) {
   let left;
   const superMethodName = meta.superMethodName;
 
   if (node.soak === true) {
-    return recast
-      .parse(node.compile(meta))
+    const compiled:string = node.compile(meta);
+    return
+      parse(compiled)
       .program.body[0].expression;
   } else if (node.isSuper === true && superMethodName === 'constructor') {
     left = b.identifier('super');
@@ -232,15 +286,15 @@ function mapCall(node, meta) {
     mapArguments(node.args, meta));
 }
 
-function mapAssignment(node, meta) {
+function mapAssignment(node: CNode, meta: Object) {
   return b.expressionStatement(mapExpression(node, meta));
 }
 
-function mapClassProperty(node, meta) {
+function mapClassProperty(node: CNode, meta: Object) {
   return b.classProperty(mapExpression(node.variable, meta), mapExpression(node.value, meta), null);
 }
 
-function mapClassBodyElement(node, meta) {
+function mapClassBodyElement(node: CNode, meta: Object) {
   const superMethodName = node.variable.base.value;
   let elementType = 'method';
   let isStatic = false;
@@ -272,7 +326,7 @@ function mapClassBodyElement(node, meta) {
   );
 }
 
-function getBoundMethodNames(classElements, meta) {
+function getBoundMethodNames(classElements, meta: Object) {
   return flatten(classElements
       .filter(el => el.base && el.base.properties)
       .map(el => el.base.properties)
@@ -292,11 +346,11 @@ function unbindMethods(classElements) {
   });
 }
 
-function mapStaticClassProperty(node, meta) {
+function mapStaticClassProperty(node: CNode, meta: Object) {
   return b.classProperty(mapExpression(node.variable.properties[0], meta), mapExpression(node.value, meta), null, true);
 }
 
-function mapClassExpressions(expressions, meta) {
+function mapClassExpressions(expressions, meta: Object) {
   return expressions.reduce((arr, expr) => {
     const type = expr.constructor.name;
     let classElements = [];
@@ -314,7 +368,7 @@ function mapClassExpressions(expressions, meta) {
   }, []);
 }
 
-function mapClassBody(node, meta) {
+function mapClassBody(node: CBody, meta: Object) {
   const {expressions} = node;
   const boundMethods = getBoundMethodNames(expressions, meta);
   const classElements = mapClassExpressions(expressions, meta);
@@ -353,7 +407,7 @@ function mapClassBody(node, meta) {
   return b.classBody(classElements);
 }
 
-function mapClassExpression(node, meta) {
+function mapClassExpression(node: CNode, meta: Object) {
   // if this is an anonymous class expression fallback
   // to the cs compiler
   if (node.variable === undefined &&
@@ -375,7 +429,7 @@ function mapClassExpression(node, meta) {
   );
 }
 
-function mapClassDeclaration(node, meta) {
+function mapClassDeclaration(node: CNode, meta: Object) {
   let parent = null;
 
   if (get(node, 'variable.properties.length') > 0) {
@@ -397,7 +451,7 @@ function mapClassDeclaration(node, meta) {
   );
 }
 
-function mapElseBlock(node, meta) {
+function mapElseBlock(node: CNode, meta: Object) {
   const type = node.constructor.name;
 
   if (type === 'If') {
@@ -413,7 +467,7 @@ function mapElseBlock(node, meta) {
   return mapBlockStatement({expressions: [node]}, meta);
 }
 
-function mapElseExpression(node, meta) {
+function mapElseExpression(node: CNode, meta: Object) {
   const type = node.constructor.name;
 
   if (type === 'If') {
@@ -425,7 +479,7 @@ function mapElseExpression(node, meta) {
   return mapExpression(node, meta);
 }
 
-function mapConditionalExpression(node, meta) {
+function mapConditionalExpression(node: CNode, meta: Object) {
   let alternate = b.identifier('undefined');
 
   if (node.elseBody) {
@@ -439,7 +493,7 @@ function mapConditionalExpression(node, meta) {
   );
 }
 
-function mapTryExpression(node, meta) {
+function mapTryExpression(node: CNode, meta: Object) {
   const tryBlock = mapTryCatchBlock(node, meta);
   tryBlock.block = addReturnStatementToBlock(tryBlock.block);
   return b.callExpression(
@@ -454,7 +508,7 @@ function mapTryExpression(node, meta) {
 }
 
 
-function mapIfStatement(node, meta) {
+function mapIfStatement(node: CNode, meta: Object) {
   let alternate = null;
   if (node.elseBody) {
     alternate = mapElseBlock(node.elseBody.expressions[0], meta);
@@ -486,7 +540,7 @@ function isStatement(expr) {
   }
 }
 
-function mapConditionalStatement(node, meta) {
+function mapConditionalStatement(node: CNode, meta: Object) {
   // If the conditional has more than one test
   // or more than one expression in either block we
   // create an if statement otherwise we use a conditional
@@ -503,7 +557,7 @@ function mapConditionalStatement(node, meta) {
   return b.expressionStatement(mapConditionalExpression(node, meta));
 }
 
-function mapTryCatchBlock(node, meta) {
+function mapTryCatchBlock(node: CNode, meta: Object) {
   let recovery;
   let errorVar;
   let finalize = null;
@@ -535,11 +589,11 @@ function mapTryCatchBlock(node, meta) {
   );
 }
 
-function mapReturnStatement(node, meta) {
+function mapReturnStatement(node: CNode, meta: Object) {
   return b.returnStatement(node.expression ? mapExpression(node.expression, meta) : null);
 }
 
-function mapStatement(node, meta) {
+function mapStatement(node: CNode, meta: Object) {
   const type = node.constructor.name;
 
   if (type === 'While') {
@@ -567,16 +621,16 @@ function mapStatement(node, meta) {
   return b.expressionStatement(mapExpression(node, meta));
 }
 
-function mapBlockStatements(node, meta) {
+function mapBlockStatements(node: CNode, meta: Object) {
   return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
-function mapBlockStatement(node, meta, factory = b.blockStatement) {
+function mapBlockStatement(node: CNode, meta, factory = b.blockStatement) {
   const block = factory(mapBlockStatements(node, meta));
   return block;
 }
 
-function mapInArrayExpression(node, meta) {
+function mapInArrayExpression(node: CNode, meta: Object) {
   return b.memberExpression(
     mapExpression(node.array, meta),
     b.callExpression(
@@ -586,7 +640,7 @@ function mapInArrayExpression(node, meta) {
   );
 }
 
-function extractAssignStatementsByArguments(nodes) {
+function extractAssignStatementsByArguments(node: CNodes) {
   return nodes
     .map(node => node.type === 'AssignmentExpression' ? node.left : node)
     .filter(node => node.type === 'MemberExpression' &&
@@ -602,7 +656,7 @@ function extractAssignStatementsByArguments(nodes) {
     );
 }
 
-function normalizeArguments(nodes) {
+function normalizeArguments(node: CNodes) {
   return nodes.map(node => {
     if (node.type === 'AssignmentExpression' &&
        node.left.type === 'MemberExpression') {
@@ -621,7 +675,7 @@ function normalizeArguments(nodes) {
 }
 
 // index can be an expression in this case
-function mapArgumentWithExpansion(node, meta, arg) {
+function mapArgumentWithExpansion(node: CNode, meta, arg) {
   const expr = mapExpression(node.name, meta);
   const statements = [];
 
@@ -682,7 +736,7 @@ function mapSplatArgument(headLength, tailCount) {
   );
 }
 
-function mapArgumentsWithExpansion(nodes, meta) {
+function mapArgumentsWithExpansion(nodes: CNodeList, meta: Object) {
   // In coffeescript you can have arguments that are
   // positioned at the end like this: fn = (begin, middle..., end) ->
   // The bit in the middle is of type Splat or Expansion. Expansion
@@ -809,7 +863,7 @@ function lastBreakStatement(nodeList = []) {
   return nodeList;
 }
 
-function addReturnStatementToIfBlocks(node) {
+function addReturnStatementToIfBlocks(node: CNode) {
   node.consequent = addReturnStatementToBlock(node.consequent);
   if (n.IfStatement.check(node.alternate)) {
     node.alternate = addReturnStatementToIfBlocks(node.alternate);
@@ -821,7 +875,7 @@ function addReturnStatementToIfBlocks(node) {
   return node;
 }
 
-function addReturnStatementToBlock(node) {
+function addReturnStatementToBlock(node: CNode) {
   const hasReturnStatement = findIndex(node.body, {type: 'ReturnStatement'}) === node.body.length - 1;
 
   if (hasReturnStatement) {
@@ -831,7 +885,7 @@ function addReturnStatementToBlock(node) {
   return node;
 }
 
-function mapFunction(node, meta) {
+function mapFunction(node: CNode, meta: Object) {
   // Function {
   //   params: [],
   //   body: [statements],
@@ -890,7 +944,7 @@ function mapFunction(node, meta) {
   return b.functionExpression(null, args, block, isGenerator);
 }
 
-function getStatement(node) {
+function getStatement(node: CNode) {
   if (n.Statement.check(node.value) !== true && node.parent) {
     return getStatement(node.parent);
   }
@@ -1048,7 +1102,7 @@ function insertVariableDeclarations(ast) {
   return ast;
 }
 
-function mapSwitchCases(cases, meta) {
+function mapSwitchCases(cases, meta: Object) {
   return cases.reduce((arr, nodes) => {
     const tests = isArray(nodes[0]) ? nodes[0] : [nodes[0]];
     const switchCases = tests.filter(expr => !!expr).map(expr => b.switchCase(mapExpression(expr), []));
@@ -1064,7 +1118,7 @@ function mapSwitchCases(cases, meta) {
   }, []);
 }
 
-function mapSwitchStatement(node, meta) {
+function mapSwitchStatement(node: CNode, meta: Object) {
   let cases = [];
 
   if (node.cases && node.cases.length > 0) {
@@ -1081,7 +1135,7 @@ function mapSwitchStatement(node, meta) {
   );
 }
 
-function mapForStatement(node, meta) {
+function mapForStatement(node: CNode, meta: Object) {
   if (node.object === false) {
     return b.forInStatement(
       b.variableDeclaration(
@@ -1118,7 +1172,7 @@ function mapForStatement(node, meta) {
   }
 }
 
-function mapLeftHandForExpression(node, meta) {
+function mapLeftHandForExpression(node: CNode, meta: Object) {
   if (node.step !== undefined) {
     return b.memberExpression(
       mapExpression(node.source, meta),
@@ -1147,7 +1201,7 @@ function mapLeftHandForExpression(node, meta) {
                   )
                 )
               )],
-              recast.parse('return _i === 0 || _i % (2 + 1) == 0;').program.body
+              parse('return _i === 0 || _i % (2 + 1) == 0;').program.body
             )
           ),
         ]
@@ -1158,7 +1212,7 @@ function mapLeftHandForExpression(node, meta) {
   return mapExpression(node.source, meta);
 }
 
-function mapForExpression(node, meta) {
+function mapForExpression(node: CNode, meta: Object) {
   const leftHand = mapLeftHandForExpression(node, meta);
   return b.memberExpression(
     leftHand,
@@ -1174,11 +1228,11 @@ function mapForExpression(node, meta) {
   );
 }
 
-function mapSplatParam(node, meta) {
+function mapSplatParam(node: CNode, meta: Object) {
   return b.restElement(mapExpression(node, meta));
 }
 
-function mapParam(node, meta) {
+function mapParam(node: CNode, meta: Object) {
   if (node.value !== undefined && node.value !== null) {
     return mapExpression(mapParamToAssignment(node), meta);
   } else if (node.splat === true) {
@@ -1187,11 +1241,11 @@ function mapParam(node, meta) {
   return mapExpression(node.name, meta);
 }
 
-function mapSplat(node, meta) {
+function mapSplat(node: CNode, meta: Object) {
   return b.spreadElement(mapExpression(node.name, meta));
 }
 
-function addReturnStatementsToSwitch(node) {
+function addReturnStatementsToSwitch(node: CNode) {
   node.cases = node.cases.map(switchCase => {
     switchCase.consequent = lastReturnStatement(switchCase.consequent);
     return switchCase;
@@ -1199,7 +1253,7 @@ function addReturnStatementsToSwitch(node) {
   return node;
 }
 
-function addBreakStatementsToSwitch(node) {
+function addBreakStatementsToSwitch(node: CNode) {
   node.cases = node.cases.map(switchCase => {
     if (switchCase.test !== null) {
       switchCase.consequent = lastBreakStatement(switchCase.consequent);
@@ -1209,7 +1263,7 @@ function addBreakStatementsToSwitch(node) {
   return node;
 }
 
-function mapSwitchExpression(node, meta) {
+function mapSwitchExpression(node: CNode, meta: Object) {
   return b.callExpression(
     b.arrowFunctionExpression(
       [],
@@ -1221,23 +1275,23 @@ function mapSwitchExpression(node, meta) {
   );
 }
 
-function fallback(node, meta) {
+function fallback(node: CNode, meta: Object) {
   const compiled = node.compile(meta);
-  return recast.parse(recast.prettyPrint(
-    recast.parse(compiled), meta.options)).program.body[0].expression;
+  return parse(prettyPrint(
+    parse(compiled), meta.options)).program.body[0].expression;
 }
 
-function mapExistentialExpression(node, meta) {
+function mapExistentialExpression(node: CNode, meta: Object) {
   return fallback(node, meta);
 }
 
-function mapNewExpression(node, meta) {
+function mapNewExpression(node: CNode, meta: Object) {
   const constructor = node.first || node.variable;
   const args = node.args ? mapArguments(node.args, meta) : [];
   return b.newExpression(mapExpression(constructor, meta), args);
 }
 
-function conditionalStatementAsExpression(node, meta) {
+function conditionalStatementAsExpression(node: CNode, meta: Object) {
   const conditionalStatement = mapConditionalStatement(node, meta);
 
   if (conditionalStatement.type === 'IfStatement') {
@@ -1255,30 +1309,30 @@ function conditionalStatementAsExpression(node, meta) {
   return conditionalStatement.expression;
 }
 
-// function mapComment(node) {
+// function mapComment(node: CNode) {
 //   const comment = b.block(node.comment);
 //   return comment;
 // }
 
-function mapWhileLoop(node, meta) {
+function mapWhileLoop(node: CNode, meta: Object) {
   return b.whileStatement(
     mapExpression(node.condition, meta),
     mapBlockStatement(node.body, meta));
 }
 
-function mapThrowStatement(node, meta) {
+function mapThrowStatement(node: CNode, meta: Object) {
   return b.throwStatement(mapExpression(node.expression, meta));
 }
 
-function mapWhileExpression(node, meta) {
+function mapWhileExpression(node: CNode, meta: Object) {
   return fallback(node, meta);
 }
 
-function mapYieldExpression(node, meta) {
+function mapYieldExpression(node: CNode, meta: Object) {
   return b.yieldExpression(mapExpression(node.first, meta));
 }
 
-function mapExpression(node, meta) {
+function mapExpression(node: CNode | CBase, meta: Object): JSNode {
   const type = node.constructor.name;
 
   if (node.properties && node.properties.length > 0) {
@@ -1342,7 +1396,7 @@ function mapExpression(node, meta) {
   throw new Error(`can't convert node of type: ${type} to Expression - not recognized`);
 }
 
-function mapParamToAssignment(node) {
+function mapParamToAssignment(node: CNode) {
   const assignment = {
     variable: node.name,
     value: node.value,
@@ -1351,7 +1405,7 @@ function mapParamToAssignment(node) {
   return assignment;
 }
 
-function mapAssignmentExpression(node, meta) {
+function mapAssignmentExpression(node: CNode, meta: Object) {
   let variable;
   if (get(node, 'variable.base.properties.length') > 0) {
     variable = mapAssignmentPattern(node.variable.base, meta);
@@ -1379,7 +1433,7 @@ function mapAssignmentExpression(node, meta) {
   return assignment;
 }
 
-function mapObjectPatternItem(node, meta) {
+function mapObjectPatternItem(node: CBase, meta: Object) {
   const type = node.constructor.name;
   if (type === 'Value') {
     return mapLiteral(node, meta);
@@ -1393,7 +1447,7 @@ function mapObjectPatternItem(node, meta) {
   throw new Error(`can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
 }
 
-function mapObjectPattern(nodes, meta) {
+function mapObjectPattern(nodes: CBaseList, meta: Object) {
   return b.objectPattern(nodes.map(node => {
     const {operatorToken} = node;
     let prop;
@@ -1410,7 +1464,7 @@ function mapObjectPattern(nodes, meta) {
   }));
 }
 
-function mapArrayPattern(node, meta) {
+function mapArrayPattern(node: CBase, meta: Object) {
   return b.arrayPattern(node.objects.map(prop => {
     const type = prop.base.constructor.name;
     if (type === 'Literal') {
@@ -1423,7 +1477,7 @@ function mapArrayPattern(node, meta) {
   }));
 }
 
-function mapAssignmentPattern(node, meta) {
+function mapAssignmentPattern(node: CNodeList, meta: Object) {
   // that's a destructuring assignment
   const type = node.constructor.name;
 
@@ -1441,7 +1495,7 @@ function coffeeParse(source) {
   return ast;
 }
 
-export function transpile(ast, meta) {
+export function transpile(ast, meta: Object) {
   if (meta === undefined) {
     meta = {};
   }
@@ -1462,7 +1516,7 @@ export function compile(source, opts, parse = coffeeParse) {
   const _compile = compose(
     // hack because of double semicolon
     compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
-    jsAst => recast.print(jsAst, opts),
+    jsAst => print(jsAst, opts),
     insertSuperCalls,
     insertVariableDeclarations,
     csAst => transpile(csAst, {options: opts}),

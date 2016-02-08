@@ -1,0 +1,10 @@
+[ignore]
+.*/node_modules/.*
+
+[libs]
+./src/interfaces.js
+
+[options]
+module.system=haste
+module.name_mapper='^lodash.+' -> 'noop'
+module.name_mapper='jscodeshift' -> 'noop'
