@@ -210,6 +210,12 @@ describe('Existential Operator', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('foo?.bar', () => {
+    const example = 'foo?.bar';
+    const expected = 'typeof foo !== "undefined" && foo !== null ? foo.bar : void 0;';
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('foo?.bar?', () => {
     const example = 'foo?.bar?';
     const expected = '((typeof foo !== "undefined" && foo !== null ? foo.bar : void 0)) != null;';
