@@ -57,7 +57,8 @@ function mapMemberProperties(properties, meta) {
 }
 
 function mapMemberExpression(node, meta) {
-  if (findIndex(node.base.properties, {soak: true}) > -1) {
+  if (findIndex(node.base.properties, {soak: true}) > -1 ||
+     (node.properties && findIndex(node.properties, {soak: true}) > -1)) {
     return fallback(node, meta);
   }
   return mapMemberProperties([node.base, ...node.properties], meta);
