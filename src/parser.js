@@ -453,9 +453,20 @@ function mapTryExpression(node, meta) {
 
 function mapIfStatement(node, meta) {
   let alternate = null;
-  if (node.elseBody) {
-    alternate = mapElseBlock(node.elseBody.expressions[0], meta);
+  let elseBody = node.elseBody;
+
+  // The coffeescript doesn't explicitly tell you if something is
+  // an if-else block so we need to make some checks and then a little
+  // plumbing to put this in the right place.
+  if (get(elseBody, 'expressions.length') === 1 &&
+     get(elseBody, 'expressions[0].constructor.name') === 'If') {
+    elseBody = elseBody.expressions[0];
   }
+
+  if (elseBody) {
+    alternate = mapElseBlock(elseBody, meta);
+  }
+
   return b.ifStatement(
     mapExpression(node.condition, meta),
     mapBlockStatement(node.body, meta),

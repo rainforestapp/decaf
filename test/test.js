@@ -1233,6 +1233,17 @@ else
     const expected = `(condition === true && bam !== false ? console.log("boom") : undefined);`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('shouldn\'t remove any statements', () => {
+    const example =
+`if true
+  conole.log 'then'
+else
+  console.log 'else1'
+  console.log 'else2'`;
+    const expected = ``
+    console.log(compile(example));
+  });
 });
 
 describe('try catch statements', () => {
