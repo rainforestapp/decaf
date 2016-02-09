@@ -1070,7 +1070,7 @@ describe('ClassExpression', () => {
 });
 
 describe('Destructuring', () => {
-  it('maps simple object destructuring assignments', () => {
+  it('{a, b} = abam', () => {
     const example = `{a, b} = abam`;
     const expected =
 `var {
@@ -1080,7 +1080,7 @@ describe('Destructuring', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('maps deep object destructuring assignments', () => {
+  it('{a, b: {c: {d}}} = abam', () => {
     const example = `{a, b: {c: {d}}} = abam`;
     const expected =
 `var {
@@ -1095,19 +1095,19 @@ describe('Destructuring', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('maps simple array destructuring assignments', () => {
+  it('[a, b, c] = abam', () => {
     const example = `[a, b, c] = abam`;
     const expected = `var [a, b, c] = abam;`;
     expect(compile(example)).toEqual(expected);
   });
 
-  it('maps nested array destructuring assignments', () => {
+  it('[a, [b, [c]]] = abam', () => {
     const example = `[a, [b, [c]]] = abam`;
     const expected = `var [a, [b, [c]]] = abam;`;
     expect(compile(example)).toEqual(expected);
   });
 
-  it('maps object destructuring assignment inside array destructuring assignment', () => {
+  it('[{a: {b: 123}}, b] = bam', () => {
     const example = `[{a: {b: 123}}, b] = bam`;
     const expected =
 `var [{
@@ -1118,12 +1118,20 @@ describe('Destructuring', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('maps array destructuring assignment inside object destructuring assignment', () => {
+  it('{a: [b, c]} = bam', () => {
     const example = `{a: [b, c]} = bam`;
     const expected =
 `var {
   a: [b, c]
 } = bam;`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('{@a, @b} = @options', () => {
+    const example = `{@a, @b} = @options`;
+    const expected =
+`var ref;
+ref = this.options, this.a = ref.a, this.b = ref.b, ref;`;
     expect(compile(example)).toEqual(expected);
   });
 });

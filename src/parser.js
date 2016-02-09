@@ -233,10 +233,6 @@ function mapCall(node, meta) {
     mapArguments(node.args, meta));
 }
 
-function mapAssignment(node, meta) {
-  return b.expressionStatement(mapExpression(node, meta));
-}
-
 function mapClassProperty(node, meta) {
   return b.classProperty(mapExpression(node.variable, meta), mapExpression(node.value, meta), null);
 }
@@ -545,8 +541,6 @@ function mapStatement(node, meta) {
 
   if (type === 'While') {
     return mapWhileLoop(node, meta);
-  } else if (type === 'Assign') {
-    return mapAssignment(node, meta);
   } else if (type === 'Return') {
     return mapReturnStatement(node, meta);
   } else if (type === 'Throw') {
@@ -1354,6 +1348,10 @@ function mapParamToAssignment(node) {
 
 function mapAssignmentExpression(node, meta) {
   let variable;
+  const props = get(node, 'variable.base.properties') || [];
+  if (any(props, {this: true})) {
+    return fallback(node, meta);
+  }
   if (get(node, 'variable.base.properties.length') > 0) {
     variable = mapAssignmentPattern(node.variable.base, meta);
   } else {
