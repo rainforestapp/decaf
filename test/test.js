@@ -71,6 +71,22 @@ describe('throw statements', ()=> {
   });
 });
 
+describe('Comment', () => {
+  it('doesn\'t break class declaration and excludes comments', () => {
+    const example =
+`class A
+  ###
+  B
+  ###
+  c: ->`;
+    const expected =
+`class A {
+  c() {}
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 // describe('Comments', () => {
 //   it('multiline comments in Program', () => {
 //     const example =
