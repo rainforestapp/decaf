@@ -1155,13 +1155,18 @@ function mapLeftHandForExpression(node, meta) {
 
 function mapForExpression(node, meta) {
   const leftHand = mapLeftHandForExpression(node, meta);
+
+  if (node.object === true) {
+    return fallback(node, meta);
+  }
+
   return b.memberExpression(
     leftHand,
     b.callExpression(
       b.identifier('map'),
       [
         b.arrowFunctionExpression(
-          [mapExpression(node.name, meta)],
+          [mapExpression(node.name || node.index, meta)],
           addReturnStatementToBlock(mapBlockStatement(node.body, meta))
         ),
       ]
