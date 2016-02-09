@@ -1532,6 +1532,22 @@ describe('comprehensions', () => {
 };`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('(a for a of b).sort()', () => {
+    const example = `(a for a of b).sort()`;
+    const expected =
+`((function() {
+  var results;
+  results = [];
+
+  for (a in b) {
+    results.push(a);
+  }
+
+  return results;
+})()).sort();`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('ranges', () => {
