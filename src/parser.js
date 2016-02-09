@@ -304,7 +304,7 @@ function mapClassExpressions(expressions, meta) {
     } else if (type === 'Value') {
       classElements = expr.base.properties;
       classElements = unbindMethods(classElements);
-      classElements = classElements.filter(el => el.constructor.name !== 'Comment')
+      classElements = classElements.filter(el => el.constructor.name !== 'Comment');
       classElements = classElements.map(el => mapClassBodyElement(el, meta));
       return arr.concat(classElements);
     }
