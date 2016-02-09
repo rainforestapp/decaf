@@ -1249,6 +1249,31 @@ else
     const expected = `(condition === true && bam !== false ? console.log("boom") : undefined);`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('shouldn\'t remove any statements', () => {
+    const example =
+`if true
+  console.log 'then'
+else if false
+  1 + 321
+  hello + world
+  bom()
+else
+  console.log 'else1'
+  console.log 'else2'`;
+    const expected =
+`if (true) {
+  console.log("then");
+} else if (false) {
+  1 + 321;
+  hello + world;
+  bom();
+} else {
+  console.log("else1");
+  console.log("else2");
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('try catch statements', () => {
