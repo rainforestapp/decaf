@@ -275,14 +275,14 @@ function getBoundMethodNames(classElements, meta) {
       .map(el => el.base.properties)
     )
     .filter(el => get(el, 'variable.this') !== true &&
-      el.value.constructor.name === 'Code' &&
+      get(el, 'value.constructor.name') === 'Code' &&
         el.value.bound === true
     ).map(el => mapExpression(el.variable, meta));
 }
 
 function unbindMethods(classElements) {
   return classElements.map(el => {
-    if (el.value.constructor.name === 'Code') {
+    if (get(el, 'value.constructor.name') === 'Code') {
       el.value.bound = false;
     }
     return el;
@@ -304,6 +304,7 @@ function mapClassExpressions(expressions, meta) {
     } else if (type === 'Value') {
       classElements = expr.base.properties;
       classElements = unbindMethods(classElements);
+      classElements = classElements.filter(el => el.constructor.name !== 'Comment')
       classElements = classElements.map(el => mapClassBodyElement(el, meta));
       return arr.concat(classElements);
     }
