@@ -15,11 +15,14 @@
     "max-len": [2, 120, 2],
     "no-param-reassign": 0,
     "arrow-parens": [2, "as-needed"],
-    "indent": [2, 2, {"SwitchCase": 1}]
+    "indent": [2, 2, {"SwitchCase": 1}],
+    "flow-vars/define-flow-type": 1,
+    "flow-vars/use-flow-type": 1
   },
+  "parser": "babel-eslint",
   "plugins": [
     "babel",
-    "flowtype"
+    "flow-vars"
   ],
   "globals": {
   }
