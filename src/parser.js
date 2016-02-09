@@ -1061,6 +1061,7 @@ function mapSwitchCases(cases, meta) {
 
 function mapSwitchStatement(node, meta) {
   let cases = [];
+  let subject;
 
   if (node.cases && node.cases.length > 0) {
     cases = cases.concat(node.cases);
@@ -1070,9 +1071,21 @@ function mapSwitchStatement(node, meta) {
     cases.push([null, node.otherwise]);
   }
 
+  cases = mapSwitchCases(cases, meta);
+
+  if (node.subject) {
+    subject = mapExpression(node.subject, meta);
+  } else {
+    cases = cases.map(cas => {
+      cas.test = b.unaryExpression('!', cas.test);
+      return cas;
+    });
+    subject = b.literal(false);
+  }
+
   return b.switchStatement(
-    mapExpression(node.subject, meta),
-    mapSwitchCases(cases, meta)
+    subject,
+    cases
   );
 }
 

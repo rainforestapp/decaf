@@ -1373,6 +1373,25 @@ case "anne":
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('can produce a switch statement without a subject of undefined', () => {
+    const example =
+`switch
+  when true
+    1
+  when 'boom'
+    2`;
+    const expected =
+`switch (false) {
+case !true:
+  1;
+  break;
+case !"boom":
+  2;
+  break;
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('switch expressions', () => {
