@@ -1,6 +1,8 @@
 /* eslint-disable no-eval */
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
+// import {compile as coffeeCompile} from 'coffee-script';
+
 
 function compile(source) {
   return _compile(source, {tabWidth: 2, quote: 'double'});
@@ -127,7 +129,6 @@ describe('new Expressions', () => {
     expect(compile(`new FooBar('bobo')`)).toEqual(`new FooBar("bobo");`);
   });
 
-
   it('bom = new FooBar', () => {
     expect(compile('bom = new FooBar')).toEqual('var bom = new FooBar();');
   });
@@ -141,15 +142,10 @@ describe('modulo operator', () => {
   // module function copied from coffeescript compiler output
   function modulo(left, right) { return (+left % (right = +right) + right) % right; }
 
-  it('a %% b', () => {
-    const example = 'a %% b';
-    const expected = '(a % b + b) % b;';
-    expect(compile(example)).toEqual(expected);
-  });
-
-  it('a %% b %% c', () => {
-    const example = 'a %% b %% c';
-    const expected = '((a % b + b) % b % c + c) % c;';
+  it('falls back to modulo utility function', () => {
+    const example = `5 %% 3`;
+    const expected = `var modulo = function (a, b) { return (+a % (b = +b) + b) % b; };
+modulo(5, 3);`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -936,6 +932,28 @@ describe('ClassExpression', () => {
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('inserts return statements into functions inside a constructor', () => {
+    const example =
+`class A
+  constructor: ()->
+    fn = (foo)->
+      foo = 'foo'
+      bar = 'dw'
+      super a + 'b'`;
+    const expected =
+`class A {
+  constructor() {
+    var fn = function(foo) {
+      foo = "foo";
+      var bar = "dw";
+      return super(a + "b");
+    };
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
 
   it('assigns @ arguments to this', ()=> {
     const example =
@@ -2058,11 +2076,38 @@ describe('call expressions', () => {
   });
 });
 
-// describe('extends operator', () => {
-//   it(`compiles to Object.assign`, () => {
-//     it(`a`)
-//   });
-// });
+describe('extends operator', () => {
+  it(`falls back to coffeescript extend utility function`, () => {
+    const example = `a extends b`;
+    const expected =
+`var extend = function(child, parent) {
+  for (var key in parent) {
+    if (hasProp.call(parent, key)) child[key] = parent[key];
+  }
+  function ctor() {
+    this.constructor = child;
+  }
+  ctor.prototype = parent.prototype;
+  child.prototype = new ctor();
+  child.__super__ = parent.prototype;
+  return child;
+};
+
+var hasProp = {}.hasOwnProperty;
+extend(a, b);`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
+describe('? operator', () => {
+  it('falls back to coffeescript compilation', ()=> {
+    const example = 'a() ? b';
+    const expected =
+`var ref;
+(ref = a()) != null ? ref : b;`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
 
 describe('compound assignments', () => {
   it(`a += 1`, ()=> {
@@ -2110,7 +2155,6 @@ describe('compound assignments', () => {
   });
 });
 
-
 it('Generator functions', () => {
   const example =
 `perfectSquares = ->
@@ -2132,4 +2176,69 @@ window.ps or= perfectSquares()`;
 
 window.ps || (window.ps = perfectSquares());`;
   expect(compile(example)).toEqual(expected);
+});
+
+
+describe('prevents naming collision', () => {
+  it('if there is already a variable called modulo', () => {
+    const example =
+`modulo = 123
+1 %% 5`;
+    const expected =
+`var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+var modulo = 123;
+modulo1(1, 5);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('if we declare a variable called modulo after we use cs modulo', () => {
+    const example =
+`1 %% 5
+modulo = 123`;
+    const expected =
+`var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+modulo1(1, 5);
+var modulo = 123;`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('if a function parameter is named modulo', () => {
+    const example = `(modulo) -> 1 %% 5`;
+    const expected =
+`var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+
+(function(modulo) {
+  return modulo1(1, 5);
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('if a destructured function parameter is named modulo', () => {
+    const example = `({modulo}) -> 1 %% 5`;
+    const expected =
+`var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+
+(function(
+  {
+    modulo
+  }) {
+  return modulo1(1, 5);
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('if a destructured variable is named modulo', () => {
+    const example =
+`{a: [b, c, modulo]} = obj
+1 %% 5`;
+    const expected =
+`var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+
+var {
+  a: [b, c, modulo]
+} = obj;
+
+modulo1(1, 5);`;
+    expect(compile(example)).toEqual(expected);
+  });
 });

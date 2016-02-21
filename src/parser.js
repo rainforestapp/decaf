@@ -2,6 +2,7 @@ import {builders as b, namedTypes as n} from 'ast-types';
 import recast from 'recast';
 import {nodes as coffeeAst} from 'coffee-script';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
+import {Code, Block} from 'coffee-script/lib/coffee-script/nodes';
 import findWhere from 'lodash/collection/findWhere';
 import last from 'lodash/array/last';
 import flatten from 'lodash/array/flatten';
@@ -149,22 +150,14 @@ function mapValue(node, meta) {
 function mapOp(node, meta) {
   const {operator} = node;
 
+  // fall back to coffee-script modulo
   if (operator === '%%' && node.second) {
-    return b.binaryExpression(
-      '%',
-      b.parenthesizedExpression(
-        b.binaryExpression(
-          '+',
-          b.binaryExpression(
-            '%',
-            mapExpression(node.first, meta),
-            mapExpression(node.second, meta)
-          ),
-          mapExpression(node.second, meta)
-        )
-      ),
-      mapExpression(node.second, meta)
-    );
+    return fallback(node, meta);
+  }
+
+  // fall back to coffee-script conditional operator
+  if (operator === '?') {
+    return fallback(node, meta);
   }
 
   if (operator === '++' || operator === '--') {
@@ -241,6 +234,13 @@ function mapClassBodyElement(node, meta) {
   const superMethodName = node.variable.base.value;
   let elementType = 'method';
   let isStatic = false;
+  const type = node.constructor.name;
+
+
+  if (type === 'Assign' && node.value) {
+    node.value.name = node.variable.base.value;
+    node.value.variable = node.variable;
+  }
 
   if (node.variable.this === true) {
     isStatic = true;
@@ -374,6 +374,10 @@ function mapClassExpression(node, meta) {
 
 function mapClassDeclaration(node, meta) {
   let parent = null;
+
+  node.ensureConstructor(node.variable.base.value);
+  const code = new Code([], Block.wrap([node.body]));
+  meta = Object.assign({}, meta, {classScope: code.makeScope(meta.scope)});
 
   if (get(node, 'variable.properties.length') > 0) {
     return b.expressionStatement(b.assignmentExpression(
@@ -577,7 +581,45 @@ function mapBlockStatements(node, meta) {
   return node.expressions.map(expr => mapStatement(expr, meta));
 }
 
+function addVariablesToScope(nodes = [], meta, context = false) {
+  // recursively  add all variables to the cs scope object to
+  // prevent any naming collisions that might occur when the
+  // coffee-script compiler needs to generate variable names
+  nodes.forEach(node => {
+    const type = node.constructor.name;
+
+    if (type === 'Param') {
+      const nameType = node.name.constructor.name;
+
+      if (nameType === 'Obj' || nameType === 'Arr') {
+        addVariablesToScope(node.name.objects, meta, true);
+      } else if (nameType === 'Literal') {
+        meta.scope.add(node.name.value, 'var');
+      }
+    } else if (type === 'Code') {
+      addVariablesToScope(node.params, meta, true);
+    } else if (type === 'Assign') {
+      const varType = node.variable.base.constructor.name;
+
+      if (varType === 'Literal') {
+        meta.scope.add(node.variable.base.value, 'var');
+      }
+
+      if (varType === 'Obj' || varType === 'Arr') {
+        addVariablesToScope(node.variable.base.objects, meta, true);
+      }
+
+      if (node.context === 'object' && node.value && node.value.base.objects) {
+        addVariablesToScope(node.value.base.objects, meta, true);
+      }
+    } else if (type === 'Value' && context === true) {
+      meta.scope.add(node.base.value, 'var');
+    }
+  });
+}
+
 function mapBlockStatement(node, meta, factory = b.blockStatement) {
+  addVariablesToScope(node.expressions, meta);
   const block = factory(mapBlockStatements(node, meta));
   return block;
 }
@@ -846,6 +888,8 @@ function mapFunction(node, meta) {
   let args = [];
   const isGenerator = node.isGenerator;
 
+  meta = Object.assign({}, meta, {scope: node.makeScope(meta.scope)});
+
   // setupStatements will be appended at the top of the function
   // block. It's used to add behaviour that would be impossible to
   // map 1 to 1 from coffeescript
@@ -882,7 +926,7 @@ function mapFunction(node, meta) {
   setupStatements = setupStatements.concat(extractAssignStatementsByArguments(args, meta));
 
   let block = mapBlockStatement(node.body, meta);
-  if (isGenerator === false && meta.superMethodName !== 'constructor') {
+  if (isGenerator === false && node.name !== 'constructor') {
     block = addReturnStatementToBlock(block, meta);
   }
 
@@ -1343,6 +1387,8 @@ function mapExpression(node, meta) {
     return mapParam(node, meta);
   } else if (type === 'Class') {
     return mapClassExpression(node, meta);
+  } else if (type === 'Extends' && node.parent && node.child) {
+    return fallback(node, meta);
   } else if (type === 'Extends') {
     return mapExpression(node.parent, meta);
   } else if (type === 'Code') { // Code is just a stupid word for function
@@ -1475,11 +1521,27 @@ export function transpile(ast, meta) {
   }
 
   if (!meta.scope) {
-    meta.scope = new Scope(null, coffeeParse, null, []);
+    meta.scope = new Scope(null, ast, null, []);
     meta.indent = ' ';
   }
 
   const program = mapBlockStatement(ast, meta, b.program);
+
+  const {utilities} = meta.scope;
+  const utils = Object.keys(utilities);
+
+  utils.forEach(util => {
+    const expr = recast.parse(
+      utilities[util] +
+      ' = ' +
+      UTILITIES[util](meta)
+    ).program.body[0];
+
+    delete expr.loc;
+
+    program.body.unshift(expr);
+  });
+
   return program;
 }
 
@@ -1497,4 +1559,39 @@ export function compile(source, opts, parse = coffeeParse) {
     parse);
 
   return _compile(source).code;
+}
+
+const UTILITIES = {
+  modulo() { return 'function (a, b) { return (+a % (b = +b) + b) % b; }'; },
+
+  extend(o) {
+    return `function(child, parent) {
+  for (var key in parent) {
+    if (${utility('hasProp', o)}.call(parent, key)) child[key] = parent[key];
+  }
+  function ctor() {
+    this.constructor = child;
+  }
+  ctor.prototype = parent.prototype;
+  child.prototype = new ctor();
+  child.__super__ = parent.prototype;
+  return child;
+}`;
+  },
+
+  hasProp() { return '{}.hasOwnProperty'; },
+};
+
+// Helper for ensuring that utility functions are assigned at the top level.
+// copied from coffee-script compiler
+function utility(name, o) {
+  const {root} = o.scope;
+
+  if (root.utilities[name]) {
+    return root.utilities[name];
+  }
+
+  const ref = root.freeVariable(name);
+  root.assign(ref, UTILITIES[name](o));
+  root.utilities[name] = ref;
 }

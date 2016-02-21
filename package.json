@@ -14,6 +14,7 @@
     "test:mocha": "mocha --require mocha-compiler",
     "test:lint": "eslint src",
     "test": "npm run test:mocha && npm run test:lint",
+    "testDebug": "mocha debug --require mocha-compiler",
     "build": "mkdir -p dist && babel src/parser.js --out-file dist/index.js",
     "watchTest": "mocha -w --require mocha-compiler",
     "watchTestDebug": "mocha -w debug --require mocha-compiler",
