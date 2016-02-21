@@ -1532,9 +1532,7 @@ export function transpile(ast, meta) {
 
   utils.forEach(util => {
     const expr = recast.parse(
-      utilities[util] +
-      ' = ' +
-      UTILITIES[util](meta)
+      `${utilities[util]} = ${UTILITIES[util](meta)}`
     ).program.body[0];
 
     delete expr.loc;
