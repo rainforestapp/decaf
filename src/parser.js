@@ -206,6 +206,12 @@ function mapCall(node, meta) {
   let left;
   const superMethodName = meta.superMethodName;
 
+  // fallback early if variable name contains an existential operator
+  if (node.variable && (findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1 ||
+     (node.variable.properties && findIndex(node.variable.properties, {soak: true}) > -1))) {
+    return fallback(node, meta);
+  }
+
   if (node.soak === true) {
     return recast
       .parse(node.compile(meta))

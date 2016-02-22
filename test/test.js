@@ -216,6 +216,14 @@ modulo(5, 3);`;
 });
 
 describe('Existential Operator', () => {
+  it('mapCall uses fallback if variable contains existential operator', () => {
+    const example = `@user?.get('name')`;
+    const expected =
+`var ref;
+(ref = this.user) != null ? ref.get("name") : void 0;`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('foo?', () => {
     const example = 'foo?';
     const expected = 'typeof foo !== "undefined" && foo !== null;';
@@ -244,8 +252,8 @@ describe('Existential Operator', () => {
     const example = 'yo = a?.b?.c?()';
     const expected =
 `var ref;
-var yo = typeof a !== "undefined" && a !== null ? (ref = a.b) != null ? \
-typeof ref.c === "function" ? ref.c() : void 0 : void 0 : void 0;`;
+var yo = typeof a !== "undefined" && a !== null ? \
+((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0;`;
     expect(compile(example)).toEqual(expected);
   });
 });
