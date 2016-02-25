@@ -1139,7 +1139,9 @@ function mapSwitchStatement(node, meta) {
     subject = mapExpression(node.subject, meta);
   } else {
     cases = cases.map(cas => {
-      cas.test = b.unaryExpression('!', cas.test);
+      if (cas.test !== null) {
+        cas.test = b.unaryExpression('!', cas.test);
+      }
       return cas;
     });
     subject = b.literal(false);

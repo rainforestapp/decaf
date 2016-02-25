@@ -1447,7 +1447,9 @@ case "anne":
   when true
     1
   when 'boom'
-    2`;
+    2
+  else
+    3`;
     const expected =
 `switch (false) {
 case !true:
@@ -1456,6 +1458,8 @@ case !true:
 case !"boom":
   2;
   break;
+default:
+  3;
 }`;
     expect(compile(example)).toEqual(expected);
   });
