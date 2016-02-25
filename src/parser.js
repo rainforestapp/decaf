@@ -6,8 +6,6 @@ import {Code, Block} from 'coffee-script/lib/coffee-script/nodes';
 import findWhere from 'lodash/collection/findWhere';
 import last from 'lodash/array/last';
 import flatten from 'lodash/array/flatten';
-import pick from 'lodash/object/pick';
-import values from 'lodash/object/values';
 import findIndex from 'lodash/array/findIndex';
 import get from 'lodash/object/get';
 import compose from 'lodash/function/compose';
@@ -21,10 +19,6 @@ const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
 
 const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/;
-
-function pluck(obj, keys) {
-  return values(pick(obj, keys));
-}
 
 function mapBoolean(node) {
   if (node.base.val === 'true') {
@@ -1153,35 +1147,60 @@ function mapSwitchStatement(node, meta) {
 
 function mapForStatement(node, meta) {
   if (node.object === false) {
-    return b.forInStatement(
+    if (node.index === undefined) {
+      const name = node.name === undefined
+        ? b.identifier('_i')
+        : mapExpression(node.name, Object.assign({}, meta, { left: true }));
+      return b.forInStatement(
+        b.variableDeclaration(
+          'let',
+          [b.variableDeclarator(name, null)]
+        ),
+        mapExpression(node.source, meta),
+        mapBlockStatement(node.body, meta)
+      );
+    }
+    return b.forOfStatement(
       b.variableDeclaration(
         'let',
-        [b.variableDeclarator(mapExpression(node.name, Object.assign({}, meta, { left: true })), null)]
+        [b.variableDeclarator(b.arrayPattern([
+          mapExpression(node.index, meta),
+          mapExpression(node.name, meta),
+        ]), null)]
       ),
-      mapExpression(node.source, meta),
+      b.callExpression(
+        b.memberExpression(
+          mapExpression(node.source, meta),
+          b.identifier('entries')
+        ),
+        []
+      ),
       mapBlockStatement(node.body, meta)
     );
   } else if (node.object === true) {
-    const args =
-      b.arrayPattern(
-        pluck(node, ['index', 'name'])
-        .filter(expr => !!expr)
-        .map(expr => mapExpression(expr, meta)));
-    return b.forInStatement(
+    let declaration;
+    let method;
+    if (node.name === undefined) {
+      declaration = mapExpression(node.index, meta);
+      method = 'keys';
+    } else {
+      declaration = b.arrayPattern([
+        mapExpression(node.index, meta),
+        mapExpression(node.name, meta),
+      ]);
+      method = 'entries';
+    }
+    return b.forOfStatement(
       b.variableDeclaration(
         'let',
-        [
-          b.variableDeclarator(args, null),
-        ]
+        [b.variableDeclarator(declaration, null)]
       ),
-      b.memberExpression(
-        b.identifier('Object'),
-        b.callExpression(
-          b.identifier('entries'),
-          [
-            mapExpression(node.source, meta),
-          ]
-        )
+      b.callExpression(
+        b.memberExpression(
+          b.identifier('Object'),
+          b.identifier(method)
+        ),
+        [mapExpression(node.source, meta)]
       ),
       mapBlockStatement(node.body, meta)
     );
@@ -1230,22 +1249,45 @@ function mapLeftHandForExpression(node, meta) {
 
 function mapForExpression(node, meta) {
   const leftHand = mapLeftHandForExpression(node, meta);
-
+  const args = [];
+  let target;
   if (node.object === true) {
-    return fallback(node, meta);
+    let method;
+    if (node.name === undefined) {
+      args.push(mapExpression(node.index, meta));
+      method = 'keys';
+    } else {
+      args.push(b.arrayPattern([
+        mapExpression(node.index, meta),
+        mapExpression(node.name, meta),
+      ]));
+      method = 'entries';
+    }
+    target = b.callExpression(
+      b.memberExpression(b.identifier('Object'), b.identifier(method)),
+      [leftHand]
+    );
+  } else {
+    target = leftHand;
+    if (node.name !== undefined) {
+      args.push(mapExpression(node.name, meta));
+    }
+    if (node.index !== undefined) {
+      args.push(mapExpression(node.index, meta));
+    }
   }
 
-  return b.memberExpression(
-    leftHand,
-    b.callExpression(
-      b.identifier('map'),
-      [
-        b.arrowFunctionExpression(
-          [mapExpression(node.name || node.index, meta)],
-          addReturnStatementToBlock(mapBlockStatement(node.body, meta))
-        ),
-      ]
-    )
+  return b.callExpression(
+    b.memberExpression(
+      target,
+      b.identifier('map')
+    ),
+    [
+      b.arrowFunctionExpression(
+        args,
+        addReturnStatementToBlock(mapBlockStatement(node.body, meta))
+      ),
+    ]
   );
 }
 
