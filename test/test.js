@@ -1522,7 +1522,7 @@ describe('comprehensions', () => {
     const example =
 `say key, value for key, value of {a: 1}`;
     const expected =
-`for (let [key, value] in Object.entries({
+`for (let [key, value] of Object.entries({
   a: 1
 })) {
   say(key, value);
@@ -1534,7 +1534,7 @@ describe('comprehensions', () => {
     const example =
 `say key for key of {a: 1}`;
     const expected =
-`for (let [key] in Object.entries({
+`for (let key of Object.keys({
   a: 1
 })) {
   say(key);
@@ -1619,19 +1619,66 @@ describe('comprehensions', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('(c(a) for a, c of b).sort()', () => {
+    const example = `(c(a) for a, c of b).sort()`;
+    const expected =
+`(Object.entries(b).map(([a, c]) => {
+  return c(a);
+})).sort();`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('(a for a of b).sort()', () => {
     const example = `(a for a of b).sort()`;
     const expected =
-`((function() {
-  var results;
-  results = [];
+`(Object.keys(b).map(a => {
+  return a;
+})).sort();`;
+    expect(compile(example)).toEqual(expected);
+  });
 
-  for (a in b) {
-    results.push(a);
-  }
+  it('a(b) for a, b in c', () => {
+    const example = `a(b) for a, b in c`;
+    const expected =
+`for (let [b, a] of c.entries()) {
+  a(b);
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
 
-  return results;
-})()).sort();`;
+  it('a for [0..1]', () => {
+    const example = `a for [0..1]`;
+    const expected =
+`for (let _i in [0, 1]) {
+  a;
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('b = (a for [0..1])', () => {
+    const example = `b = (a for [0..1])`;
+    const expected =
+`var b = ([0, 1].map(() => {
+  return a;
+}));`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it(`a = (1 for b, c in awesome)`, () => {
+    const example = `a = (1 for b, c in awesome)`;
+    const expected =
+`var a = (awesome.map((b, c) => {
+  return 1;
+}));`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it(`1 for a, b in c.slice(1)`, () => {
+    const example = `1 for a, b in c.slice(1)`;
+    const expected =
+`for (let [b, a] of c.slice(1).entries()) {
+  1;
+}`;
     expect(compile(example)).toEqual(expected);
   });
 });
