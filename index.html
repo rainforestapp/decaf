@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" class="decaf-fullscreen">
+  <head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>decaf · CoffeeScript in, ES6 out</title>
+  <meta name="description" content="CoffeeScript in, ES6 out">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="css/main.css">
+
+  <meta name="msapplication-TileColor" content="#da532c">
+  <meta name="msapplication-TileImage" content="/mstile-144x144.png">
+
+  <script src="//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/lodash.js/2.4.1/lodash.min.js"></script>
+  <script src="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.1/js/bootstrap.min.js"></script>
+</head>
+<body>
+<nav role="navigation" id="header" class="navbar navbar-default navbar-fixed-top">
+  <div class="container">
+    <div class="navbar-header">
+      <a href="." class="navbar-brand logo">decaf</a>
+    </div>
+  </div>
+</nav>
+<div class="decaf-repl">
+  <form class="form decaf-repl-toolbar">
+    <div class="pull-left">
+      <div class="form-group">
+        <label for="option-evaluate">
+          <input id="option-evaluate" type="checkbox"> Evaluate
+        </label>
+      </div>
+    </div>
+  </form>
+  <div class="decaf-repl-editor decaf-repl-input"><div class="ace_editor"></div></div>
+  <div class="decaf-repl-editor decaf-repl-output"><div class="ace_editor"></div></div>
+  <div class="decaf-repl-reporter decaf-repl-errors"></div>
+  <div class="decaf-repl-reporter decaf-repl-console"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
+  <script src="scripts/decaf.js"></script>
+  <script src="scripts/repl.js"></script>
+</div>
+
+
+<div class="footer text-center">
+  <a href="https://github.com/juliankrispel/decaf">decaf</a> · v0.3.1
+  · Distributed under MIT License
+</div>
+</body>
+</html>
