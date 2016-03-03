@@ -2284,8 +2284,7 @@ body { position: relative; padding-top: 50px; }
 .jumbotron-inverse h1 { color: inherit; }
 .jumbotron-inverse .jumbotron-brand { color: #f2d025; }
 
-.logo { background: url(../images/logo.png) no-repeat center; background-size: auto 35px; width: 250px; height: 50px; }
-.logo.navbar-brand { font: 0/0 a; color: transparent; text-shadow: none; background-color: transparent; border: 0; }
+.logo.navbar-brand { font-size: 30px;}
 
 .navbar { font-family: "Avenir Next", Avenir, "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 600; border-bottom-width: 2px; }
 
