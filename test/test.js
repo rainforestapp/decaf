@@ -1,8 +1,7 @@
 /* eslint-disable no-eval */
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
-// import {compile as coffeeCompile} from 'coffee-script';
-
+import {compile as coffeeCompile} from 'coffee-script';
 
 function compile(source) {
   return _compile(source, {tabWidth: 2, quote: 'double'});
@@ -546,8 +545,9 @@ try {
 `var b;
 
 4 + (b = function() {
+  var c;
   var a;
-  var c = "booooo";
+  c = "booooo";
   return a = 123;
 });`;
     expect(compile(example)).toEqual(expected);
@@ -793,6 +793,13 @@ describe('ClassExpression', () => {
     const example = `class A`;
     const expected = `class A {}`;
     expect(compile(example)).toEqual(expected);
+  });
+
+  it('renders unnamed class expression', () => {
+    const example =
+`class extends Parent
+    constructor: ->`;
+    console.log(compile(example));
   });
 
   it('renders class declarations with MemberExpressions as class names', () => {
@@ -1492,7 +1499,7 @@ describe('comprehensions', () => {
 `for food in ['toast', 'cheese', 'wine']
   eat food`;
     const expected =
-`for (let food in ["toast", "cheese", "wine"]) {
+`for (let food of ["toast", "cheese", "wine"]) {
   eat(food);
 }`;
     expect(compile(example)).toEqual(expected);
@@ -1500,10 +1507,15 @@ describe('comprehensions', () => {
 
   it('a(b) for [a, b] in c', () => {
     const expected =
-`for (let [a, b] in c) {
+`for (let [a, b] of c) {
   a(b);
 }`;
     expect(compile('a(b) for [a, b] in c')).toEqual(expected);
+  });
+
+  it('for in loop with key and index', () => {
+    const example = `say v,k for v,k in o`;
+    console.log(compile(example));
   });
 
   it('a(b) for {a, b} in c', () => {
@@ -1511,7 +1523,7 @@ describe('comprehensions', () => {
 `for (let {
   a,
   b
-} in c) {
+} of c) {
   a(b);
 }`;
     expect(compile('a(b) for {a, b} in c')).toEqual(expected);
@@ -1592,7 +1604,7 @@ describe('comprehensions', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('for loop in class method with MemberExpression name', () => {
+  it.only('for loop in class method with MemberExpression name', () => {
     const example =
 `class A.B
   c: ->
@@ -1601,15 +1613,18 @@ describe('comprehensions', () => {
     const expected =
 `A.B = class B {
   c() {
+    var i;
+    var results;
+
     return (() => {
-      for (let d in (function() {
-          var results = [];
+      for (let d of (function() {
+        results = [];
 
-          for (var i = 0; (0 <= e ? i <= e : i >= e); (0 <= e ? i++ : i--)) {
-              results.push(i);
-          }
+        for (i = 0; (0 <= e ? i <= e : i >= e); (0 <= e ? i++ : i--)) {
+          results.push(i);
+        }
 
-          return results;
+        return results;
       }).apply(this)) {
         d;
       }
@@ -1622,7 +1637,9 @@ describe('comprehensions', () => {
   it('(a for a of b).sort()', () => {
     const example = `(a for a of b).sort()`;
     const expected =
-`((function() {
+`var a;
+
+((function() {
   var results;
   results = [];
 
@@ -1647,14 +1664,17 @@ describe('ranges', () => {
   it('[1...bom]', () => {
     const example = `[1...bom]`;
     const expected =
-`(function() {
-    var results = [];
+`var i;
+var results;
 
-    for (var i = 1; (1 <= bom ? i < bom : i > bom); (1 <= bom ? i++ : i--)) {
-        results.push(i);
-    }
+(function() {
+  results = [];
 
-    return results;
+  for (var i = 1; (1 <= bom ? i < bom : i > bom); (1 <= bom ? i++ : i--)) {
+    results.push(i);
+  }
+
+  return results;
 }).apply(this);`;
 
     expect(compile(example)).toEqual(expected);
@@ -1669,19 +1689,25 @@ describe('ranges', () => {
 describe('splats', () => {
   it('a = c(b...)', () => {
     const example = `a = c(b...)`;
-    const expected = `var a = c(...b);`;
+    const expected =
+`var a;
+a = c(...b);`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('fn = (b...)->', () => {
     const example = `fn = (b...) ->`;
-    const expected = `var fn = function(...b) {};`;
+    const expected =
+`var fn;
+fn = function(...b) {};`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('a = [b...]', () => {
     const example = `a = [b...]`;
-    const expected = `var a = [...b];`;
+    const expected =
+`var a;
+a = [...b];`;
     expect(compile(example)).toEqual(expected);
   });
 });
@@ -1727,7 +1753,9 @@ describe('argument splats', () => {
   it('fn = (first, ..., beforeLast, last) ->', () => {
     const example = `fn = (first, ..., beforeLast, last) ->`;
     const expected =
-`var fn = function() {
+`var fn;
+
+fn = function() {
   var first = arguments[0];
   var last = arguments[arguments.length - 1];
   var beforeLast = arguments[arguments.length - 2];
@@ -1738,7 +1766,9 @@ describe('argument splats', () => {
   it(`fn = (@first = 'sobo', ..., beforeLast, last = bom()) ->`, () => {
     const example = `fn = (@first = 'sobo', ..., @beforeLast = 'boom', last = bom()) ->`;
     const expected =
-`var fn = function() {
+`var fn;
+
+fn = function() {
   this.first = arguments[0];
 
   if (arguments[0] === undefined)
@@ -1760,7 +1790,9 @@ describe('argument splats', () => {
   it('fn = (first, rest..., last) ->', () => {
     const example = `fn = (first, rest..., last) ->`;
     const expected =
-`var fn = function() {
+`var fn;
+
+fn = function() {
   var first = arguments[0];
   var rest = arguments.slice(2, arguments[arguments.length - 1]);
   var last = arguments[arguments.length - 1];
@@ -1771,7 +1803,9 @@ describe('argument splats', () => {
   it('fn = (first, @rest..., last) ->', () => {
     const example = `fn = (first, @rest..., last) ->`;
     const expected =
-`var fn = function() {
+`var fn;
+
+fn = function() {
   var first = arguments[0];
   this.rest = arguments.slice(2, arguments[arguments.length - 1]);
   var last = arguments[arguments.length - 1];
@@ -1803,7 +1837,9 @@ describe('slices', () => {
 describe('conditional expressions', () => {
   it(`foo = if bar is true then 12345 else 54321`, () => {
     const example = `foo = if bar is true then 12345 else 54321`;
-    const expected = `var foo = (bar === true ? 12345 : 54321);`;
+    const expected =
+`var foo;
+foo = (bar === true ? 12345 : 54321);`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -1843,11 +1879,19 @@ describe('conditional expressions', () => {
     expect(compile(`loop loop say 'hi' if rand isnt ord`)).toEqual(expected);
   });
 
+  it('say x for x in c', () => {
+    const expected =
+`for (let x of c) {
+  say(x);
+}`;
+    expect(compile('say x for x in c')).toEqual(expected);
+  });
+
   it(`for in while loop`, () => {
     const expected =
 `if (rand !== ord) {
   while (true) {
-    for (let a in c) {
+    for (let a of c) {
       say("hi");
     }
   }
@@ -1865,7 +1909,9 @@ describe('conditional expressions', () => {
   it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom'`, () => {
     const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom'`;
     const expected =
-`var foo = (() => {
+`var foo;
+
+foo = (() => {
   if (bar === true) {
     return 12345;
   } else if (hello === "world") {
@@ -1878,7 +1924,9 @@ describe('conditional expressions', () => {
   it(`foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`, () => {
     const example = `foo = if bar is true then 12345 else if hello is 'world' then 'boom' else 'bam'`;
     const expected =
-`var foo = (() => {
+`var foo;
+
+foo = (() => {
   if (bar === true) {
     return 12345;
   } else if (hello === "world") {
@@ -1900,11 +1948,14 @@ describe('conditional expressions', () => {
       abc = 'bom' + 123
       abc`;
     const expected =
-`var b = (() => {
+`var abc;
+var b;
+
+b = (() => {
   if (a === "loo") {
     return "boom";
   } else if (boom() === 2) {
-    var abc = "bom" + 123;
+    abc = "bom" + 123;
     return abc;
   }
 })();`;
@@ -1920,9 +1971,10 @@ describe('return statements', () => {
   when 'c'
     c = b if c is 'd'`;
     const expected =
-`var a = (() => {
-  var c;
+`var a;
+var c;
 
+a = (() => {
   switch (a) {
   case "b":
     return "c";
@@ -1942,9 +1994,10 @@ describe('return statements', () => {
       when 'c'
         c = b if c is 'd'`;
     const expected =
-`var a = (b !== true ? (() => {
-  var c;
+`var a;
+var c;
 
+a = (b !== true ? (() => {
   switch (a) {
   case "b":
     return "c";
@@ -1965,9 +2018,10 @@ describe('return statements', () => {
         c = b if c is 'd'
     123`;
     const expected =
-`var a = (() => {
-  var c;
+`var a;
+var c;
 
+a = (() => {
   if (b !== true) {
     switch (a) {
     case "b":
@@ -2024,7 +2078,9 @@ while ((line = lines.shift()) !== undefined) {
 `names = while a.length > 0
   a.shift()`;
     const expected =
-`var names = (function() {
+`var names;
+
+names = (function() {
   var results;
   results = [];
 
@@ -2041,7 +2097,9 @@ while ((line = lines.shift()) !== undefined) {
 describe('anonymous class', () => {
   it('uses coffeescript compiler', () => {
     const expected =
-`var a = (function() {
+`var a;
+
+a = (function() {
   function _Class() {}
   return _Class;
 })();`;
@@ -2128,7 +2186,11 @@ describe('? operator', () => {
     const example = 'a() ? b';
     const expected =
 `var ref;
-(ref = a()) != null ? ref : b;`;
+if ((ref = a()) != null) {
+  ref;
+} else {
+  b;
+}`;
     expect(compile(example)).toEqual(expected);
   });
 });
@@ -2210,7 +2272,8 @@ describe('prevents naming collision', () => {
 1 %% 5`;
     const expected =
 `var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
-var modulo = 123;
+var modulo;
+modulo = 123;
 modulo1(1, 5);`;
     expect(compile(example)).toEqual(expected);
   });
@@ -2221,18 +2284,23 @@ modulo1(1, 5);`;
 modulo = 123`;
     const expected =
 `var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+var modulo;
 modulo1(1, 5);
-var modulo = 123;`;
+modulo = 123;`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('if a function parameter is named modulo', () => {
-    const example = `(modulo) -> 1 %% 5`;
+    const example =
+`(modulo, b) ->
+  1 %% 5
+  b = 123`;
     const expected =
 `var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
 
-(function(modulo) {
-  return modulo1(1, 5);
+(function(modulo, b) {
+  modulo1(1, 5);
+  return b = 123;
 });`;
     expect(compile(example)).toEqual(expected);
   });
@@ -2257,10 +2325,14 @@ var modulo = 123;`;
 1 %% 5`;
     const expected =
 `var modulo1 = function (a, b) { return (+a % (b = +b) + b) % b; };
+var a;
+var b;
+var c;
+var modulo;
 
-var {
+({
   a: [b, c, modulo]
-} = obj;
+} = obj);
 
 modulo1(1, 5);`;
     expect(compile(example)).toEqual(expected);

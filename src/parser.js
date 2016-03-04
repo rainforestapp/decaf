@@ -1,6 +1,7 @@
 import {builders as b, namedTypes as n} from 'ast-types';
 import recast from 'recast';
-import {nodes as coffeeAst} from 'coffee-script';
+import {Lexer} from 'coffee-script/lib/coffee-script/lexer';
+import coffeeParser from 'coffee-script/lib/coffee-script/parser';
 import {Scope} from 'coffee-script/lib/coffee-script/scope';
 import {Code, Block} from 'coffee-script/lib/coffee-script/nodes';
 import findWhere from 'lodash/collection/findWhere';
@@ -14,6 +15,8 @@ import compose from 'lodash/function/compose';
 import isArray from 'lodash/lang/isArray';
 import any from 'lodash/collection/any';
 import jsc from 'jscodeshift';
+
+const lexer = new Lexer();
 
 // regexes taken from coffeescript parser
 const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
@@ -60,7 +63,7 @@ function mapMemberProperties(properties, meta) {
 function mapMemberExpression(node, meta) {
   if (findIndex(node.base.properties, {soak: true}) > -1 ||
      (node.properties && findIndex(node.properties, {soak: true}) > -1)) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
   return mapMemberProperties([node.base, ...node.properties], meta);
 }
@@ -103,8 +106,7 @@ function mapArrayExpression(node, meta) {
 }
 
 function mapRange(node, meta) {
-  const compiledRange = recast.parse(recast.prettyPrint(recast.parse(node.compile(meta)))).program.body[0];
-  return compiledRange.expression;
+  return fallbackExpression(node, meta);
 }
 
 function mapSlice(node, meta) {
@@ -152,12 +154,12 @@ function mapOp(node, meta) {
 
   // fall back to coffee-script modulo
   if (operator === '%%' && node.second) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
 
   // fall back to coffee-script conditional operator
   if (operator === '?') {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
 
   if (operator === '++' || operator === '--') {
@@ -187,8 +189,12 @@ function mapOp(node, meta) {
 }
 
 function mapArguments(args, meta) {
+  meta = Object.assign({}, meta, {isArguments: true});
   return args.map(arg => {
     let type;
+    if (typeof get(arg, 'name.value') === 'string') {
+      meta.scope.add(get(arg, 'name.value'), 'param');
+    }
     if (arg.name && arg.name.constructor) {
       type = arg.name.constructor.name;
     }
@@ -209,7 +215,7 @@ function mapCall(node, meta) {
   // fallback early if variable name contains an existential operator
   if (node.variable && (findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1 ||
      (node.variable.properties && findIndex(node.variable.properties, {soak: true}) > -1))) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
 
   if (node.soak === true) {
@@ -363,7 +369,7 @@ function mapClassExpression(node, meta) {
   if (node.variable === undefined &&
       node.parent === undefined &&
       node.body.expressions.length < 1) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
 
   let parent = null;
@@ -563,6 +569,8 @@ function mapStatement(node, meta) {
 
   if (type === 'While') {
     return mapWhileLoop(node, meta);
+  } else if (type === 'Op' && node.operator === '?') {
+    return fallbackBlockStatement(node, meta);
   } else if (type === 'Return') {
     return mapReturnStatement(node, meta);
   } else if (type === 'Throw') {
@@ -626,8 +634,9 @@ function addVariablesToScope(nodes = [], meta, context = false) {
 }
 
 function mapBlockStatement(node, meta, factory = b.blockStatement) {
-  addVariablesToScope(node.expressions, meta);
+  //addVariablesToScope(node.expressions, meta);
   const block = factory(mapBlockStatements(node, meta));
+
   return block;
 }
 
@@ -829,8 +838,14 @@ function transformToExpression(_node) {
 
   if (node.type === 'IfStatement') {
     node = addReturnStatementToIfBlocks(node);
-  } else if (node.tpye === 'SwitchStatement') {
-    node = node;
+  }
+
+  if (node.type === 'ForOfStatement' ||
+     node.type == 'ForInStatement') {
+
+    b.variableDeclaration('var', [b.variableDeclarator(b.identifier('result'), b.arrayExpression([]))]);
+    node.
+    addReturnStatementToBlock(node.body);
   }
 
   return b.callExpression(
@@ -884,6 +899,15 @@ function addReturnStatementToBlock(node) {
   }
   node.body = lastReturnStatement(node.body);
   return node;
+}
+
+function hoistVariables(block, meta) {
+  if (meta.scope.hasDeclarations()) {
+    meta.scope.declaredVariables().reverse().forEach(decVar => {
+      block.body.unshift(
+        b.variableDeclaration('var', [b.variableDeclarator(b.identifier(decVar), null)]));
+    });
+  }
 }
 
 function mapFunction(node, meta) {
@@ -944,8 +968,11 @@ function mapFunction(node, meta) {
     return b.arrowFunctionExpression(args, block);
   }
 
+  hoistVariables(block, meta);
+
   return b.functionExpression(null, args, block, isGenerator);
 }
+/*
 
 function getStatement(node) {
   if (n.Statement.check(node.value) !== true && node.parent) {
@@ -989,6 +1016,7 @@ function inParentScope(path, filter) {
       .filter(filter)
   ).concat(statements);
 }
+*/
 
 function insertSuperCall(path) {
   const classMethods = get(path, 'value.body.body') || [];
@@ -1018,92 +1046,92 @@ function insertSuperCalls(ast) {
   return ast;
 }
 
-function insertVariableDeclarations(ast) {
-  jsc(ast)
-  .find(jsc.AssignmentExpression, node =>
-    n.MemberExpression.check(node.left) !== true &&
-    get(node, 'operator') === '='
-  )
-  .filter(path => {
-    const needle = {type: 'Identifier', name: path.value.left.name};
-
-    const catchClauseParam = get(path, 'parent.parent.parent.value.param');
-
-    if (get(path, 'parent.parent.parent.value.type') === 'CatchClause' &&
-      get(catchClauseParam, 'name') === needle.name) {
-      return false;
-    }
-
-    const shadowedVariables = inParentScope(path, node => {
-      if (n.VariableDeclaration.check(node)) {
-        return findIndex(node.declarations, {id: needle}) > -1;
-      }
-
-      if ((n.MethodDefinition.check(node) || n.FunctionExpression.check(node.value)) &&
-          node.value &&
-          (findIndex(node.value.params, {left: needle}) > -1 ||
-          findIndex(node.value.params, needle)) > -1) {
-        return true;
-      }
-
-      if (n.ExpressionStatement.check(node)) {
-        if ((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
-            findIndex(node.expression.params, needle) > -1) {
-          return true;
-        }
-
-        if (n.AssignmentExpression.check(node.expression)) {
-          if (node.expression.left.name === path.value.left.name) {
-            return true;
-          } else if (n.FunctionExpression.check(node.expression.right) ||
-                     n.ArrowFunctionExpression.check(node.expression.right)) {
-            if (findIndex(node.expression.right.params, needle) > -1) {
-              return true;
-            } else if (findIndex(node.expression.right.params,
-                                 {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {
-              return true;
-            }
-          }
-        }
-      }
-
-      if (n.ReturnStatement.check(node)) {
-        if (n.AssignmentExpression.check(node.argument)) {
-          return node.argument.left.name === path.value.left.name;
-        }
-      }
-      return false;
-    });
-
-    return shadowedVariables.length < 1;
-  })
-  .forEach(path => {
-    if (path.parent && path.parent.value.type === 'ExpressionStatement') {
-      jsc(path).replaceWith(_path =>
-        b.variableDeclaration(
-          'var',
-          [b.variableDeclarator(
-            _path.value.left,
-            _path.value.right
-          )]
-        )
-      );
-    } else {
-      let body = jsc(path).closestScope().nodes()[0].body;
-      if (body.body !== undefined) {
-        body = body.body;
-      }
-      body.unshift(
-        b.variableDeclaration(
-          'var',
-          [b.variableDeclarator(path.value.left, null)]
-        )
-      );
-    }
-  });
-
-  return ast;
-}
+// function insertVariableDeclarations(ast) {
+//   jsc(ast)
+//   .find(jsc.AssignmentExpression, node =>
+//     n.MemberExpression.check(node.left) !== true &&
+//     get(node, 'operator') === '='
+//   )
+//   .filter(path => {
+//     const needle = {type: 'Identifier', name: path.value.left.name};
+//
+//     const catchClauseParam = get(path, 'parent.parent.parent.value.param');
+//
+//     if (get(path, 'parent.parent.parent.value.type') === 'CatchClause' &&
+//       get(catchClauseParam, 'name') === needle.name) {
+//       return false;
+//     }
+//
+//     const shadowedVariables = inParentScope(path, node => {
+//       if (n.VariableDeclaration.check(node)) {
+//         return findIndex(node.declarations, {id: needle}) > -1;
+//       }
+//
+//       if ((n.MethodDefinition.check(node) || n.FunctionExpression.check(node.value)) &&
+//           node.value &&
+//           (findIndex(node.value.params, {left: needle}) > -1 ||
+//           findIndex(node.value.params, needle)) > -1) {
+//         return true;
+//       }
+//
+//       if (n.ExpressionStatement.check(node)) {
+//         if ((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
+//             findIndex(node.expression.params, needle) > -1) {
+//           return true;
+//         }
+//
+//         if (n.AssignmentExpression.check(node.expression)) {
+//           if (node.expression.left.name === path.value.left.name) {
+//             return true;
+//           } else if (n.FunctionExpression.check(node.expression.right) ||
+//                      n.ArrowFunctionExpression.check(node.expression.right)) {
+//             if (findIndex(node.expression.right.params, needle) > -1) {
+//               return true;
+//             } else if (findIndex(node.expression.right.params,
+//                                  {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {
+//               return true;
+//             }
+//           }
+//         }
+//       }
+//
+//       if (n.ReturnStatement.check(node)) {
+//         if (n.AssignmentExpression.check(node.argument)) {
+//           return node.argument.left.name === path.value.left.name;
+//         }
+//       }
+//       return false;
+//     });
+//
+//     return shadowedVariables.length < 1;
+//   })
+//   .forEach(path => {
+//     if (path.parent && path.parent.value.type === 'ExpressionStatement') {
+//       jsc(path).replaceWith(_path =>
+//         b.variableDeclaration(
+//           'var',
+//           [b.variableDeclarator(
+//             _path.value.left,
+//             _path.value.right
+//           )]
+//         )
+//       );
+//     } else {
+//       let body = jsc(path).closestScope().nodes()[0].body;
+//       if (body.body !== undefined) {
+//         body = body.body;
+//       }
+//       body.unshift(
+//         b.variableDeclaration(
+//           'var',
+//           [b.variableDeclarator(path.value.left, null)]
+//         )
+//       );
+//     }
+//   });
+//
+//   return ast;
+// }
 
 function mapSwitchCases(cases, meta) {
   return cases.reduce((arr, nodes) => {
@@ -1152,7 +1180,18 @@ function mapSwitchStatement(node, meta) {
 }
 
 function mapForStatement(node, meta) {
-  if (node.object === false) {
+  if (!node.index) {
+    return b.forOfStatement(
+      b.variableDeclaration(
+        'let',
+        [b.variableDeclarator(mapExpression(node.name, Object.assign({}, meta, { left: true })), null)]
+      ),
+      mapExpression(node.source, meta),
+      mapBlockStatement(node.body, meta)
+    );
+  } else if (node.index) {
+    return fallbackBlockStatement(node, meta);
+  } else if (node.object === false) {
     return b.forInStatement(
       b.variableDeclaration(
         'let',
@@ -1232,7 +1271,7 @@ function mapForExpression(node, meta) {
   const leftHand = mapLeftHandForExpression(node, meta);
 
   if (node.object === true) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
 
   return b.memberExpression(
@@ -1296,14 +1335,20 @@ function mapSwitchExpression(node, meta) {
   );
 }
 
-function fallback(node, meta) {
+function fallbackBlockStatement(node, meta) {
   const compiled = node.compile(meta);
   return recast.parse(recast.prettyPrint(
-    recast.parse(compiled), meta.options)).program.body[0].expression;
+    recast.parse(compiled), meta)).program.body[0];
+}
+
+function fallbackExpression(node, meta) {
+  const compiled = node.compile(meta, 2);
+  return recast.parse(recast.prettyPrint(
+    recast.parse(compiled), meta)).program.body[0].expression;
 }
 
 function mapExistentialExpression(node, meta) {
-  return fallback(node, meta);
+  return fallbackExpression(node, meta);
 }
 
 function mapNewExpression(node, meta) {
@@ -1346,7 +1391,7 @@ function mapThrowStatement(node, meta) {
 }
 
 function mapWhileExpression(node, meta) {
-  return fallback(node, meta);
+  return fallbackExpression(node, meta);
 }
 
 function mapYieldExpression(node, meta) {
@@ -1395,7 +1440,7 @@ function mapExpression(node, meta) {
   } else if (type === 'Class') {
     return mapClassExpression(node, meta);
   } else if (type === 'Extends' && node.parent && node.child) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   } else if (type === 'Extends') {
     return mapExpression(node.parent, meta);
   } else if (type === 'Code') { // Code is just a stupid word for function
@@ -1428,16 +1473,33 @@ function mapParamToAssignment(node) {
   return assignment;
 }
 
+function addVariableNameToScope(node, meta) {
+  const value = get(node, 'variable.base.value') ||
+          get(node, 'base.value');
+  if (typeof value === 'string') {
+    if (node.param || meta.isArguments) {
+      meta.scope.add(value, 'param');
+    } else {
+      meta.scope.find(value);
+    }
+  }
+}
+
 function mapAssignmentExpression(node, meta) {
   let variable;
   const props = get(node, 'variable.base.properties') || [];
+  const isDestructuredAssignment = get(node, 'variable.base.properties.length') > 0;
   if (any(props, {this: true})) {
-    return fallback(node, meta);
+    return fallbackExpression(node, meta);
   }
-  if (get(node, 'variable.base.properties.length') > 0) {
+  if (isDestructuredAssignment) {
     variable = mapAssignmentPattern(node.variable.base, meta);
   } else {
     variable = mapExpression(node.variable, meta);
+  }
+
+  if (!node.context || node.context === '=') {
+    addVariableNameToScope(node, meta);
   }
 
   const assignment = b.assignmentExpression(
@@ -1457,15 +1519,28 @@ function mapAssignmentExpression(node, meta) {
 
   assignment.operator = node.context || node.operator || '=';
 
+  // Because we declare variables at the top of the scope
+  // (To be compliant with the cs compiler). A destructured
+  // assignment is only valid without a variable declaration
+  // if the expression is parenthesized
+  if (isDestructuredAssignment) {
+    return b.parenthesizedExpression(assignment);
+  }
+
   return assignment;
 }
 
 function mapObjectPatternItem(node, meta) {
   const type = node.constructor.name;
+  addVariableNameToScope(node, meta);
   if (type === 'Value') {
     return mapLiteral(node, meta);
   } else if (type === 'Assign') {
-    if (node.value.base.properties) {
+
+    const valType = node.value.base.constructor.name;
+    if (valType === 'Arr') {
+      return mapArrayPattern(node.value.base, meta);
+    } else if (valType === 'Obj') {
       return mapObjectPattern(node.value.base.properties, meta);
     }
     return mapExpression(node.value, meta);
@@ -1494,6 +1569,7 @@ function mapObjectPattern(nodes, meta) {
 function mapArrayPattern(node, meta) {
   return b.arrayPattern(node.objects.map(prop => {
     const type = prop.base.constructor.name;
+    addVariableNameToScope(prop, meta);
     if (type === 'Literal') {
       return mapLiteral(prop, meta);
     } else if (type === 'Arr') {
@@ -1517,19 +1593,25 @@ function mapAssignmentPattern(node, meta) {
   return mapExpression(node, meta);
 }
 
-function coffeeParse(source) {
-  const ast = coffeeAst(source);
-  return ast;
+function coffeeParse(source, options = {}) {
+  if(typeof source === 'string') {
+    const tokens = lexer.tokenize(source, options);
+    options.referencedVars = tokens.filter(tok => tok.variable).map(tok => tok[1])
+    return [coffeeParser.parse(tokens), options];
+  } else {
+    return coffeeParser.parse(source);
+  }
 }
 
-export function transpile(ast, meta) {
+export function transpile([ast, meta]) {
   if (meta === undefined) {
     meta = {};
   }
 
   if (!meta.scope) {
-    meta.scope = new Scope(null, ast, null, []);
+    meta.scope = new Scope(null, ast, null, meta.referencedVars || []);
     meta.indent = ' ';
+    meta.level = 1;
   }
 
   const program = mapBlockStatement(ast, meta, b.program);
@@ -1537,15 +1619,18 @@ export function transpile(ast, meta) {
   const {utilities} = meta.scope;
   const utils = Object.keys(utilities);
 
+  hoistVariables(program, meta);
+
   utils.forEach(util => {
     const expr = recast.parse(
-      `${utilities[util]} = ${UTILITIES[util](meta)}`
+      `var ${utilities[util]} = ${UTILITIES[util](meta)};`
     ).program.body[0];
 
     delete expr.loc;
 
     program.body.unshift(expr);
   });
+
 
   return program;
 }
@@ -1559,11 +1644,10 @@ export function compile(source, opts, parse = coffeeParse) {
     compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
     jsAst => recast.print(jsAst, opts),
     insertSuperCalls,
-    insertVariableDeclarations,
-    csAst => transpile(csAst, {options: opts}),
+    transpile,
     parse);
 
-  return _compile(source).code;
+  return _compile(source, opts).code;
 }
 
 const UTILITIES = {
