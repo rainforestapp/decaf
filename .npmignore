@@ -1,9 +1,0 @@
-test
-.travis.yml
-reporter.js
-src
-node_modules
-reporter.js
-.eslintrc
-.babelrc
-.travis.yml
