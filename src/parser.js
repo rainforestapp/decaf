@@ -1153,7 +1153,7 @@ function mapForStatement(node, meta) {
       const name = node.name === undefined
         ? b.identifier('_i')
         : mapExpression(node.name, Object.assign({}, meta, { left: true }));
-      return b.forInStatement(
+      return b.forOfStatement(
         b.variableDeclaration(
           'let',
           [b.variableDeclarator(name, null)]

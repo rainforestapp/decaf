@@ -1496,7 +1496,7 @@ describe('comprehensions', () => {
 `for food in ['toast', 'cheese', 'wine']
   eat food`;
     const expected =
-`for (let food in ["toast", "cheese", "wine"]) {
+`for (let food of ["toast", "cheese", "wine"]) {
   eat(food);
 }`;
     expect(compile(example)).toEqual(expected);
@@ -1504,7 +1504,7 @@ describe('comprehensions', () => {
 
   it('a(b) for [a, b] in c', () => {
     const expected =
-`for (let [a, b] in c) {
+`for (let [a, b] of c) {
   a(b);
 }`;
     expect(compile('a(b) for [a, b] in c')).toEqual(expected);
@@ -1515,7 +1515,7 @@ describe('comprehensions', () => {
 `for (let {
   a,
   b
-} in c) {
+} of c) {
   a(b);
 }`;
     expect(compile('a(b) for {a, b} in c')).toEqual(expected);
@@ -1606,7 +1606,7 @@ describe('comprehensions', () => {
 `A.B = class B {
   c() {
     return (() => {
-      for (let d in (function() {
+      for (let d of (function() {
           var results = [];
 
           for (var i = 0; (0 <= e ? i <= e : i >= e); (0 <= e ? i++ : i--)) {
@@ -1653,7 +1653,7 @@ describe('comprehensions', () => {
   it('a for [0..1]', () => {
     const example = `a for [0..1]`;
     const expected =
-`for (let _i in [0, 1]) {
+`for (let _i of [0, 1]) {
   a;
 }`;
     expect(compile(example)).toEqual(expected);
@@ -1898,7 +1898,7 @@ describe('conditional expressions', () => {
     const expected =
 `if (rand !== ord) {
   while (true) {
-    for (let a in c) {
+    for (let a of c) {
       say("hi");
     }
   }
