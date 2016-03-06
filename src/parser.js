@@ -182,6 +182,10 @@ function mapOp(node, meta) {
 
 function mapArguments(args, meta) {
   return args.map(arg => {
+    if (arg.constructor.name === 'Expansion') {
+      return b.restElement(b.identifier(meta.scope.freeVariable('args')));
+    }
+
     let type;
     if (arg.name && arg.name.constructor) {
       type = arg.name.constructor.name;
@@ -638,6 +642,7 @@ function mapInArrayExpression(node, meta) {
 function extractAssignStatementsByArguments(nodes) {
   return nodes
     .map(node => node.type === 'AssignmentExpression' ? node.left : node)
+    .map(node => node.type === 'RestElement' ? node.argument : node)
     .filter(node => node.type === 'MemberExpression' &&
         (node.object.type === 'ThisExpression' || node.object.name === 'this'))
     .map(node =>
@@ -651,167 +656,30 @@ function extractAssignStatementsByArguments(nodes) {
     );
 }
 
+function normalizeArgument(node) {
+  if (node.type === 'AssignmentExpression' &&
+     node.left.type === 'MemberExpression') {
+    return b.assignmentExpression(
+      node.operator,
+      node.left.property,
+      node.right
+    );
+  }
+  if (node.type === 'MemberExpression' &&
+     (node.object.type === 'ThisExpression' || node.object.name === 'this')) {
+    return {type: 'Identifier', name: node.property.name};
+  }
+  return node;
+}
+
 function normalizeArguments(nodes) {
   return nodes.map(node => {
-    if (node.type === 'AssignmentExpression' &&
-       node.left.type === 'MemberExpression') {
-      return b.assignmentExpression(
-        node.operator,
-        node.left.property,
-        node.right
-      );
+    if (node.type === 'RestElement') {
+      node.argument = normalizeArgument(node.argument);
+      return node;
     }
-    if (node.type === 'MemberExpression' &&
-       (node.object.type === 'ThisExpression' || node.object.name === 'this')) {
-      return {type: 'Identifier', name: node.property.name};
-    }
-    return node;
+    return normalizeArgument(node);
   });
-}
-
-// index can be an expression in this case
-function mapArgumentWithExpansion(node, meta, arg) {
-  const expr = mapExpression(node.name, meta);
-  const statements = [];
-
-  if (node.name.base && node.name.base.value === 'this') {
-    statements.push(b.expressionStatement(b.assignmentExpression(
-      '=',
-      expr,
-      arg
-    )));
-  } else {
-    statements.push(b.variableDeclaration(
-      'var',
-      [b.variableDeclarator(
-        expr,
-        arg
-      )]
-    ));
-  }
-
-  if (node.value !== undefined && node.value !== null) {
-    statements.push(b.ifStatement(
-      b.binaryExpression(
-        '===',
-        arg,
-        b.identifier('undefined')
-      ),
-      b.expressionStatement(b.assignmentExpression(
-        '=',
-        expr,
-        mapExpression(node.value, meta)
-      ))
-    ));
-  }
-  return statements;
-}
-
-function mapSplatArgument(headLength, tailCount) {
-  return b.memberExpression(
-    b.identifier('arguments'),
-    b.callExpression(
-      b.identifier('slice'),
-      [
-        b.literal(headLength),
-        b.memberExpression(
-          b.identifier('arguments'),
-          b.binaryExpression(
-            '-',
-            b.memberExpression(
-              b.identifier('arguments'),
-              b.identifier('length')
-            ),
-            b.literal(tailCount)
-          ),
-          true
-        ),
-      ]
-    )
-  );
-}
-
-function mapArgumentsWithExpansion(nodes, meta) {
-  // In coffeescript you can have arguments that are
-  // positioned at the end like this: fn = (begin, middle..., end) ->
-  // The bit in the middle is of type Splat or Expansion. Expansion
-  // purely exists for defining such a 'last' Argument. There can be
-  // one or more last arguments. There can not be more than one
-  // argument of type Splat or Expansion however.
-  // Last arguments behave as normal
-
-  // Initiate statements variable, we'll fill this up.
-  const statements = [];
-
-  // find expansion index
-  const expansionIndex = findIndex(nodes, node => node.constructor.name === 'Expansion' || node.splat === true);
-  const isSplat = any(nodes, node => node.splat === true);
-
-  // separate head[] from tail[], omit the index.
-  const head = nodes.slice(0, expansionIndex);
-  const tail = nodes.slice(expansionIndex + 1, nodes.length);
-
-  if (isSplat === true) {
-    // if the expansion is a splat we'll add it to head
-    // so it gets processed
-    head.push(nodes[expansionIndex]);
-  }
-
-  // loop over head and tail and create assignment expression
-  // statements
-
-  // build head[] statements
-  head.forEach((node, index) => {
-    let argument;
-    if (node.splat === true) {
-      argument = mapSplatArgument(head.length, tail.length);
-    } else {
-      argument = b.memberExpression(
-        b.identifier('arguments'),
-        b.literal(index),
-        true
-      );
-    }
-
-    statements
-      .push
-      .apply(
-        statements,
-        mapArgumentWithExpansion(
-          node,
-          meta,
-          argument
-        ));
-  });
-
-  // build tail[] statements
-  tail.reverse().forEach((node, index) => {
-    const argument =
-      b.memberExpression(
-        b.identifier('arguments'),
-        b.binaryExpression(
-          '-',
-          b.memberExpression(
-            b.identifier('arguments'),
-            b.identifier('length')
-          ),
-          b.literal(index + 1)
-        ),
-        true
-      );
-
-    statements
-      .push
-      .apply(
-        statements,
-        mapArgumentWithExpansion(
-          node,
-          meta,
-          argument
-        ));
-  });
-
-  return statements;
 }
 
 function transformToExpression(_node) {
@@ -886,45 +754,56 @@ function mapFunction(node, meta) {
   //   body: [statements],
   //   bound: Boolean
   // }
-  let args = [];
   const isGenerator = node.isGenerator;
 
   meta = Object.assign({}, meta, {scope: node.makeScope(meta.scope)});
 
-  // setupStatements will be appended at the top of the function
-  // block. It's used to add behaviour that would be impossible to
-  // map 1 to 1 from coffeescript
-  let setupStatements = [];
-
-  // Expansions are coffee-script-only behaviour. We'll need to do
-  // some plumbing to map Expansions to JavaScript, also we don't
-  // want to rely on the coffeescript parser for this as the output
-  // is quite weird/ugly
-  const hasExpansion = any(node.params, (param, index) =>
-    // if the last argument isn't a splat or expansion we needn't worry
-    // To spell it out the logic here is:
-    // If this isn't the last argument, and
-    // the argument is either an expansion or a splat
-    // then we return true
-    (index < (node.params.length - 1) &&
-     (param.constructor.name === 'Expansion' ||
-      param.splat === true))
-  );
-
-  if (hasExpansion === false) {
-    args = mapArguments(node.params, meta);
-  }
-
-  if (hasExpansion === true) {
-    setupStatements = setupStatements.concat(setupStatements, mapArgumentsWithExpansion(node.params, meta));
-  }
-
+  let args = mapArguments(node.params, meta);
+  // restIndex is the location of the splat argument
+  const restIndex = findIndex(args, n.RestElement.check);
   // In coffeescript you can immediately assign an argument to a
   // member of `this`. Which looks like this: fn = (@a = 'A') ->
   // For our compilation we translate it like
-  // fn = function() { this.a = arguments[0]; } as there is no 1 to 1
+  // fn = function(a) { this.a = a; } as there is no 1 to 1
   // solution here
-  setupStatements = setupStatements.concat(extractAssignStatementsByArguments(args, meta));
+  // setupStatements will be appended at the top of the function
+  // block. It's used to add behaviour that would be impossible to
+  // map 1 to 1 from coffeescript
+  let setupStatements = extractAssignStatementsByArguments(args, meta);
+  // Remove any assignments to this, as those are in setupStatements by now
+  args = normalizeArguments(args, meta);
+
+  // In CoffeeScript you can have arguments after the rest argument, as a 'tail' of sorts
+  // This is not possible in es2015, so instead we change something like: fn = (a, b..., c) ->
+  // To: fn = function(a, ...b) { var [c] = b.splice(Math.max(0, b.length - 1)); }
+  if (restIndex !== -1 && restIndex < args.length - 1) {
+    const tailArgs = args.splice(restIndex + 1, args.length - restIndex - 1);
+    const name = args[restIndex].argument.name;
+    const tailStatements = [];
+    tailArgs.forEach(arg => {
+      if (arg.type === 'AssignmentExpression') {
+        arg.type = 'AssignmentPattern';
+      }
+    });
+    tailStatements.unshift(
+      b.variableDeclaration(
+        'var',
+        [b.variableDeclarator(
+          b.arrayPattern(tailArgs),
+          b.callExpression(b.memberExpression(b.identifier(name), b.identifier('splice')), [
+            b.callExpression(b.memberExpression(b.identifier('Math'), b.identifier('max')), [
+              b.literal(0),
+              b.binaryExpression('-',
+                b.memberExpression(b.identifier(name), b.identifier('length')),
+                b.literal(tailArgs.length)
+              ),
+            ]),
+          ])
+        )]
+      )
+    );
+    setupStatements = tailStatements.concat(setupStatements);
+  }
 
   let block = mapBlockStatement(node.body, meta);
   if (isGenerator === false && node.name !== 'constructor') {
@@ -932,56 +811,12 @@ function mapFunction(node, meta) {
   }
 
   block.body = setupStatements.concat(block.body);
-  args = normalizeArguments(args, meta);
 
   if (node.bound === true) {
     return b.arrowFunctionExpression(args, block);
   }
 
   return b.functionExpression(null, args, block, isGenerator);
-}
-
-function getStatement(node) {
-  if (n.Statement.check(node.value) !== true && node.parent) {
-    return getStatement(node.parent);
-  }
-  return node;
-}
-
-function inParentScope(path, filter) {
-  if (typeof filter !== 'function') {
-    throw new Error('filter argument must be function');
-  }
-  const statement = getStatement(path);
-  const scope = jsc(path).closestScope().paths()[0];
-  let statementsInScope;
-
-  if (n.Program.check(scope.value)) {
-    statementsInScope = scope.value.body;
-  } else if (n.FunctionExpression.check(scope.value) ||
-      n.ArrowFunctionExpression.check(scope.value) ||
-      n.CatchClause.check(scope.value)) {
-    statementsInScope = scope.value.body.body;
-  } else {
-    throw new Error(`Can't recognize scope container of type ${scope.value.type}`);
-  }
-
-  const indexInScope = findIndex(statementsInScope, node =>
-    statement.value === node
-  );
-
-  const statements = statementsInScope.slice(0, indexInScope).filter(filter);
-  const scopeStatement = getStatement(scope);
-
-  if (n.Program.check(scope.value)) {
-    return statements;
-  }
-  return inParentScope(scope.parent, filter).concat(
-    [scopeStatement]
-      .filter(_s => _s !== null)
-      .map(_s => _s.value)
-      .filter(filter)
-  ).concat(statements);
 }
 
 function insertSuperCall(path) {
@@ -1015,84 +850,31 @@ function insertSuperCalls(ast) {
 function insertVariableDeclarations(ast) {
   jsc(ast)
   .find(jsc.AssignmentExpression, node =>
-    n.MemberExpression.check(node.left) !== true &&
+    !n.MemberExpression.check(node.left) &&
     get(node, 'operator') === '='
   )
-  .filter(path => {
-    const needle = {type: 'Identifier', name: path.value.left.name};
-
-    const catchClauseParam = get(path, 'parent.parent.parent.value.param');
-
-    if (get(path, 'parent.parent.parent.value.type') === 'CatchClause' &&
-      get(catchClauseParam, 'name') === needle.name) {
-      return false;
-    }
-
-    const shadowedVariables = inParentScope(path, node => {
-      if (n.VariableDeclaration.check(node)) {
-        return findIndex(node.declarations, {id: needle}) > -1;
-      }
-
-      if ((n.MethodDefinition.check(node) || n.FunctionExpression.check(node.value)) &&
-          node.value &&
-          (findIndex(node.value.params, {left: needle}) > -1 ||
-          findIndex(node.value.params, needle)) > -1) {
-        return true;
-      }
-
-      if (n.ExpressionStatement.check(node)) {
-        if ((n.FunctionExpression.check(node.expression) || n.ArrowFunctionExpression.check(node.expression)) &&
-            findIndex(node.expression.params, needle) > -1) {
-          return true;
-        }
-
-        if (n.AssignmentExpression.check(node.expression)) {
-          if (node.expression.left.name === path.value.left.name) {
-            return true;
-          } else if (n.FunctionExpression.check(node.expression.right) ||
-                     n.ArrowFunctionExpression.check(node.expression.right)) {
-            if (findIndex(node.expression.right.params, needle) > -1) {
-              return true;
-            } else if (findIndex(node.expression.right.params,
-                                 {type: 'AssignmentExpression', left: {name: path.value.left.name}}) > -1) {
-              return true;
-            }
-          }
-        }
-      }
-
-      if (n.ReturnStatement.check(node)) {
-        if (n.AssignmentExpression.check(node.argument)) {
-          return node.argument.left.name === path.value.left.name;
-        }
-      }
-      return false;
-    });
-
-    return shadowedVariables.length < 1;
-  })
   .forEach(path => {
-    if (path.parent && path.parent.value.type === 'ExpressionStatement') {
-      jsc(path).replaceWith(_path =>
-        b.variableDeclaration(
-          'var',
-          [b.variableDeclarator(
-            _path.value.left,
-            _path.value.right
-          )]
-        )
-      );
-    } else {
-      let body = jsc(path).closestScope().nodes()[0].body;
-      if (body.body !== undefined) {
-        body = body.body;
+    // There's something weird with AssignmentExpressions vs. AssignmentPatterns in function arguments that
+    // causes scope.lookup to not find the definition properly.
+    if (path.parent.value.type.match(/^(ArrowFunctionExpression|Function(Expression|Statement))$/)) {
+      return;
+    }
+    const needle = path.value.left.name;
+    if (!path.scope.lookup(needle)) {
+      if (path.parent && path.parent.value.type === 'ExpressionStatement') {
+        jsc(path).replaceWith(_path =>
+          b.variableDeclaration(
+            'var',
+            [b.variableDeclarator(
+              _path.value.left,
+              _path.value.right
+            )]
+          )
+        );
+        path.scope.scan(true);
+      } else {
+        path.scope.injectTemporary(path.value.left);
       }
-      body.unshift(
-        b.variableDeclaration(
-          'var',
-          [b.variableDeclarator(path.value.left, null)]
-        )
-      );
     }
   });
 
