@@ -18,7 +18,8 @@
     "build": "mkdir -p dist && babel src/parser.js --out-file dist/index.js",
     "watchTest": "mocha -w --require mocha-compiler",
     "watchTestDebug": "mocha -w debug --require mocha-compiler",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "postpublish": "./scripts/update-gh-pages.sh"
   },
   "author": "",
   "license": "ISC",
