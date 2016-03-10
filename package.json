@@ -18,7 +18,8 @@
     "build": "mkdir -p dist && babel src/parser.js --out-file dist/index.js",
     "watchTest": "mocha -w --require mocha-compiler",
     "watchTestDebug": "mocha -w debug --require mocha-compiler",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "postpublish": "./scripts/update-gh-pages.sh"
   },
   "author": "",
   "license": "ISC",
@@ -39,6 +40,7 @@
     "babel-plugin-object-assign": "1.2.1",
     "babel-plugin-transform-object-assign": "6.1.18",
     "babel-preset-es2015": "6.1.18",
+    "browserify": "^13.0.0",
     "eslint": "1.10.3",
     "eslint-config-airbnb": "4.0.0",
     "eslint-plugin-babel": "3.0.0",
