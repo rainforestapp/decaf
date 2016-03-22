@@ -333,15 +333,21 @@ function mapClassBody(node, meta) {
       constructor.value.body.body.concat(
         boundMethods.map(identifier =>
           b.expressionStatement(
-            b.callExpression(
+            b.assignmentExpression('=',
               b.memberExpression(
-                b.memberExpression(
-                  b.thisExpression(),
-                  identifier
-                ),
-                b.identifier('bind')
+                b.thisExpression(),
+                identifier
               ),
-              [b.thisExpression()]
+              b.callExpression(
+                b.memberExpression(
+                  b.memberExpression(
+                    b.thisExpression(),
+                    identifier
+                  ),
+                  b.identifier('bind')
+                ),
+                [b.thisExpression()]
+              )
             )
           )
         )
