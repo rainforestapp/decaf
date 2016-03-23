@@ -837,7 +837,7 @@ describe('ClassExpression', () => {
     const expected =
 `var aClass = class A {
   constructor() {
-    this.b.bind(this);
+    this.b = this.b.bind(this);
   }
 
   b() {
@@ -1064,7 +1064,7 @@ describe('ClassExpression', () => {
 `class A extends B {
   constructor() {
     super();
-    this.b.bind(this);
+    this.b = this.b.bind(this);
   }
 
   b() {
@@ -1084,7 +1084,7 @@ describe('ClassExpression', () => {
 `var ClassA = class A extends B {
   constructor() {
     super();
-    this.b.bind(this);
+    this.b = this.b.bind(this);
   }
 
   b() {
