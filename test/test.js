@@ -1778,32 +1778,19 @@ describe('argument splats', () => {
   it('fn = (first, ..., beforeLast, last) ->', () => {
     const example = `fn = (first, ..., beforeLast, last) ->`;
     const expected =
-`var fn = function() {
-  var first = arguments[0];
-  var last = arguments[arguments.length - 1];
-  var beforeLast = arguments[arguments.length - 2];
+`var fn = function(first, ...args) {
+  var [beforeLast, last] = args.splice(Math.max(0, args.length - 2));
 };`;
     expect(compile(example)).toEqual(expected);
   });
 
-  it(`fn = (@first = 'sobo', ..., beforeLast, last = bom()) ->`, () => {
+  it(`fn = (@first = 'sobo', ..., @beforeLast = 'boom', last = bom()) ->`, () => {
     const example = `fn = (@first = 'sobo', ..., @beforeLast = 'boom', last = bom()) ->`;
     const expected =
-`var fn = function() {
-  this.first = arguments[0];
-
-  if (arguments[0] === undefined)
-    this.first = "sobo";
-
-  var last = arguments[arguments.length - 1];
-
-  if (arguments[arguments.length - 1] === undefined)
-    last = bom();
-
-  this.beforeLast = arguments[arguments.length - 2];
-
-  if (arguments[arguments.length - 2] === undefined)
-    this.beforeLast = "boom";
+`var fn = function(first = "sobo", ...args) {
+  var [beforeLast="boom", last=bom()] = args.splice(Math.max(0, args.length - 2));
+  this.first = first;
+  this.beforeLast = beforeLast;
 };`;
     expect(compile(example)).toEqual(expected);
   });
@@ -1811,10 +1798,8 @@ describe('argument splats', () => {
   it('fn = (first, rest..., last) ->', () => {
     const example = `fn = (first, rest..., last) ->`;
     const expected =
-`var fn = function() {
-  var first = arguments[0];
-  var rest = arguments.slice(2, arguments[arguments.length - 1]);
-  var last = arguments[arguments.length - 1];
+`var fn = function(first, ...rest) {
+  var [last] = rest.splice(Math.max(0, rest.length - 1));
 };`;
     expect(compile(example)).toEqual(expected);
   });
@@ -1822,10 +1807,9 @@ describe('argument splats', () => {
   it('fn = (first, @rest..., last) ->', () => {
     const example = `fn = (first, @rest..., last) ->`;
     const expected =
-`var fn = function() {
-  var first = arguments[0];
-  this.rest = arguments.slice(2, arguments[arguments.length - 1]);
-  var last = arguments[arguments.length - 1];
+`var fn = function(first, ...rest) {
+  var [last] = rest.splice(Math.max(0, rest.length - 1));
+  this.rest = rest;
 };`;
     expect(compile(example)).toEqual(expected);
   });
