@@ -8,6 +8,7 @@ Object.defineProperty(exports, "__esModule", {
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 exports.transpile = transpile;
+exports.removeDoubleEscapes = removeDoubleEscapes;
 exports.compile = compile;
 
 var _astTypes = require('ast-types');
@@ -149,7 +150,21 @@ function mapRange(node, meta) {
 }
 
 function mapSlice(node, meta) {
-  return _astTypes.builders.callExpression(_astTypes.builders.identifier('slice'), [mapExpression(node.range.from, meta), mapExpression(node.range.to, meta)]);
+  var range = node.range;
+
+  var args = [range.from ? mapExpression(range.from, meta) : _astTypes.builders.literal(0)];
+  if (range.to) {
+    var to = mapExpression(range.to, meta);
+    if (!range.exclusive) {
+      if (to.type === 'Literal' && typeof to.value === 'number' && Math.round(to.value) === to.value) {
+        to.value += 1;
+      } else {
+        to = _astTypes.builders.binaryExpression('+', to, _astTypes.builders.literal(1));
+      }
+    }
+    args.push(to);
+  }
+  return _astTypes.builders.callExpression(_astTypes.builders.identifier('slice'), args);
 }
 
 function mapValue(node, meta) {
@@ -276,6 +291,9 @@ function mapClassBodyElement(node, meta) {
   }
 
   if (node.constructor.name === 'Assign' && node.value && node.value.constructor.name !== 'Code') {
+    if (isStatic === true) {
+      return mapStaticClassProperty(node, meta);
+    }
     return mapClassProperty(node, meta);
   }
 
@@ -310,7 +328,8 @@ function unbindMethods(classElements) {
 }
 
 function mapStaticClassProperty(node, meta) {
-  return _astTypes.builders.classProperty(mapExpression(node.variable.properties[0], meta), mapExpression(node.value, meta), null, true);
+  var variable = (0, _get2.default)(node, 'variable.properties[0]') || node.variable;
+  return _astTypes.builders.classProperty(mapExpression(variable, meta), mapExpression(node.value, meta), null, true);
 }
 
 function mapClassExpressions(expressions, meta) {
@@ -378,7 +397,10 @@ function mapClassExpression(node, meta) {
 function mapClassDeclaration(node, meta) {
   var parent = null;
 
-  node.ensureConstructor(node.variable.base.value);
+  if (node.variable) {
+    node.ensureConstructor(node.variable.base.value);
+  }
+
   var code = new _nodes.Code([], _nodes.Block.wrap([node.body]));
   meta = _extends({}, meta, { classScope: code.makeScope(meta.scope) });
 
@@ -388,6 +410,10 @@ function mapClassDeclaration(node, meta) {
 
   if (node.parent !== undefined && node.parent !== null) {
     parent = mapExpression(node.parent, meta);
+  }
+
+  if (!node.variable) {
+    return _astTypes.builders.classDeclaration(_astTypes.builders.identifier(meta.scope.freeVariable('unnamedClass')), mapClassBody(node.body, meta), parent);
   }
 
   return _astTypes.builders.classDeclaration(mapExpression(node.variable, meta), mapClassBody(node.body, meta), parent);
@@ -659,7 +685,9 @@ function lastReturnStatement() {
   if (nodeList.length > 0) {
     var lastIndex = nodeList.length - 1;
 
-    if (nodeList[lastIndex].type === 'IfStatement') {
+    if (nodeList[lastIndex].type === 'ThrowStatement') {
+      return nodeList;
+    } else if (nodeList[lastIndex].type === 'IfStatement') {
       nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
     } else {
       nodeList[lastIndex] = _astTypes.builders.returnStatement(transformToExpression(nodeList[nodeList.length - 1]));
@@ -1179,6 +1207,13 @@ function transpile(ast, meta) {
   return program;
 }
 
+// Not sure why this is happening just yet,
+// backslashes gallore that is :(
+function removeDoubleEscapes(compiled) {
+  compiled.code = compiled.code.replace('\\\\\\', '\\');
+  return compiled;
+}
+
 function compile(source, opts) {
   var parse = arguments.length <= 2 || arguments[2] === undefined ? coffeeParse : arguments[2];
 
@@ -1187,7 +1222,7 @@ function compile(source, opts) {
 
   var _compile = (0, _compose2.default)(
   // hack because of double semicolon
-  function (compiledSource) {
+  removeDoubleEscapes, function (compiledSource) {
     return _extends({}, compiledSource, { code: compiledSource.code.replace(doubleSemicolon, ';') });
   }, function (jsAst) {
     return _recast2.default.print(jsAst, opts);
