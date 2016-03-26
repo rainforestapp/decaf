@@ -1190,6 +1190,21 @@ describe('Destructuring', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('{ a } = b\n{ c } = d', () => {
+    const example =
+`{ a } = b
+{ c } = d`;
+    const expected =
+`var {
+  a
+} = b;
+
+var {
+  c
+} = d;`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('[a, b, c] = abam', () => {
     const example = `[a, b, c] = abam`;
     const expected = `var [a, b, c] = abam;`;
