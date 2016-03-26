@@ -410,6 +410,7 @@ function mapClassDeclaration(node, meta) {
 
   if (node.parent !== undefined && node.parent !== null) {
     parent = mapExpression(node.parent, meta);
+    meta = _extends({}, meta, { extendedClass: true });
   }
 
   if (!node.variable) {
@@ -727,6 +728,23 @@ function addReturnStatementToBlock(node) {
   return node;
 }
 
+function detectIllegalSuper(node, meta) {
+  var superIndex = (0, _findIndex2.default)((0, _get2.default)(node, 'body.expressions'), { isSuper: true });
+  var hasArgumentAssignments = (0, _any2.default)(node.params, { name: { this: true } });
+  var isConstructor = meta.superMethodName === 'constructor';
+  var isExtendedClass = meta.extendedClass;
+  var firstThisAssignmentIndex = (0, _findIndex2.default)((0, _get2.default)(node, 'body.expressions'), { variable: { this: true } });
+  var superCall = (0, _get2.default)(node, 'body.expressions')[superIndex];
+
+  var hasArgumentAssignmentsAndSuperCall = isExtendedClass && isConstructor && hasArgumentAssignments && superIndex > -1;
+
+  var hasSuperCallAfterThisAssignments = isExtendedClass && firstThisAssignmentIndex > -1 && superIndex > firstThisAssignmentIndex;
+
+  if (hasArgumentAssignmentsAndSuperCall || hasSuperCallAfterThisAssignments) {
+    throw new Error('Sorry, illegal super on line ' + superCall.locationData.first_line + ', super must be called before \'this\' assignments');
+  }
+}
+
 function mapFunction(node, meta) {
   // Function {
   //   params: [],
@@ -734,6 +752,8 @@ function mapFunction(node, meta) {
   //   bound: Boolean
   // }
   var isGenerator = node.isGenerator;
+
+  detectIllegalSuper(node, meta);
 
   meta = _extends({}, meta, { scope: node.makeScope(meta.scope) });
 
