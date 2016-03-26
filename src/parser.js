@@ -396,7 +396,10 @@ function mapClassExpression(node, meta) {
 function mapClassDeclaration(node, meta) {
   let parent = null;
 
-  node.ensureConstructor(node.variable.base.value);
+  if (node.variable) {
+    node.ensureConstructor(node.variable.base.value);
+  }
+
   const code = new Code([], Block.wrap([node.body]));
   meta = Object.assign({}, meta, {classScope: code.makeScope(meta.scope)});
 
@@ -410,6 +413,14 @@ function mapClassDeclaration(node, meta) {
 
   if (node.parent !== undefined && node.parent !== null) {
     parent = mapExpression(node.parent, meta);
+  }
+
+  if (!node.variable) {
+    return b.classDeclaration(
+      b.identifier(meta.scope.freeVariable('unnamedClass')),
+      mapClassBody(node.body, meta),
+      parent
+    );
   }
 
   return b.classDeclaration(

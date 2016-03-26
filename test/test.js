@@ -836,6 +836,24 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('can compile unnamed class expressions and prevent naming collisions', () => {
+    const example =
+`class extends Parent
+  boom: ->
+class extends Parent
+  boom: ->`;
+
+    const expected =
+`class unnamedClass extends Parent {
+  boom() {}
+}
+
+class unnamedClass1 extends Parent {
+  boom() {}
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('renders a simple class expression with a method', () => {
     const example =
 `class A
