@@ -56,8 +56,19 @@ describe('Values', () => {
   });
 });
 
-describe('throw statements', ()=> {
-  it('throw "error" if success is false', ()=> {
+describe('multiline strings', () => {
+  it('should escape properly', () => {
+    const example =
+`"""
+"
+"""`;
+    const expected = String.raw`"\"";`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
+describe('throw statements', () => {
+  it('throw "error" if success is false', () => {
     const example = 'throw "error" if success is false';
     const expected =
 `if (success === false) {
