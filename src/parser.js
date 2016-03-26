@@ -1389,12 +1389,20 @@ export function transpile(ast, meta) {
   return program;
 }
 
+// Not sure why this is happening just yet,
+// backslashes gallore that is :(
+export function removeDoubleEscapes(compiled) {
+  compiled.code = compiled.code.replace('\\\\\\', '\\');
+  return compiled;
+}
+
 export function compile(source, opts, parse = coffeeParse) {
   const doubleSemicolon = /\;+/g;
   opts = opts || {tabWidth: 2, quote: 'double'};
 
   const _compile = compose(
     // hack because of double semicolon
+    removeDoubleEscapes,
     compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
     jsAst => recast.print(jsAst, opts),
     insertSuperCalls,
