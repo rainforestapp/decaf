@@ -102,13 +102,20 @@ function mapRange(node, meta) {
 }
 
 function mapSlice(node, meta) {
-  return b.callExpression(
-    b.identifier('slice'),
-    [
-      mapExpression(node.range.from, meta),
-      mapExpression(node.range.to, meta),
-    ]
-  );
+  const {range} = node;
+  const args = [range.from ? mapExpression(range.from, meta) : b.literal(0)];
+  if (range.to) {
+    let to = mapExpression(range.to, meta);
+    if (!range.exclusive) {
+      if (to.type === 'Literal' && typeof to.value === 'number' && Math.round(to.value) === to.value) {
+        to.value += 1;
+      } else {
+        to = b.binaryExpression('+', to, b.literal(1));
+      }
+    }
+    args.push(to);
+  }
+  return b.callExpression(b.identifier('slice'), args);
 }
 
 function mapValue(node, meta) {

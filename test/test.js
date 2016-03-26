@@ -1833,6 +1833,42 @@ describe('slices', () => {
     const expected = `bam.slice(a["foobar"].bom, 100);`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('bam[1..10]', () => {
+    const example = `bam[1..10]`;
+    const expected = `bam.slice(1, 11);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[1..10.5]', () => {
+    const example = `bam[1..10.5]`;
+    const expected = `bam.slice(1, 10.5 + 1);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[a()..b()]', () => {
+    const example = `bam[a()..b()]`;
+    const expected = `bam.slice(a(), b() + 1);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[1..]', () => {
+    const example = `bam[1..]`;
+    const expected = `bam.slice(1);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[..1]', () => {
+    const example = `bam[..1]`;
+    const expected = `bam.slice(0, 2);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[..]', () => {
+    const example = `bam[..]`;
+    const expected = `bam.slice(0);`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('conditional expressions', () => {
