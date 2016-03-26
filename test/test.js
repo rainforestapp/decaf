@@ -77,7 +77,16 @@ describe('throw statements', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('throw new Error "boom"', ()=> {
+  it('should not be wrapped as IIFE if last func statement', () => {
+    const example = `b = -> throw a`;
+    const expected =
+`var b = function() {
+  throw a;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('throw new Error "boom"', () => {
     const example = 'throw new Error "boom"';
     const expected = `throw new Error("boom");`;
     expect(compile(example)).toEqual(expected);
@@ -421,7 +430,7 @@ describe('parenthesized expressions', () => {
     expect(compile('1 + (2 + 3) + 4')).toEqual('1 + (2 + 3) + 4;');
   });
 
-  it('decPart = (decPart + "00").substr(0, 2)', ()=> {
+  it('decPart = (decPart + "00").substr(0, 2)', () => {
     expect(compile(
   `decPart = (decPart + "00").substr(0, 2)`)).toEqual(`var decPart = (decPart + "00").substr(0, 2);`);
   });
@@ -990,7 +999,7 @@ describe('ClassExpression', () => {
   });
 
 
-  it('assigns @ arguments to this', ()=> {
+  it('assigns @ arguments to this', () => {
     const example =
 `class A
   constructor: (@b) ->`;
@@ -1004,7 +1013,7 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('assigns @ arguments of classMethods to this', ()=> {
+  it('assigns @ arguments of classMethods to this', () => {
     const example =
 `class A.B
   a: (@b = 'hello there lovely old world') ->`;
@@ -1019,7 +1028,7 @@ describe('ClassExpression', () => {
   });
 
 
-  it('assigns @ arguments with default values to this', ()=> {
+  it('assigns @ arguments with default values to this', () => {
     const example =
 `class A
   constructor: (@b = 'boom') ->`;
@@ -2165,7 +2174,7 @@ describe('block regexes', () => {
 });
 
 describe('call expressions', () => {
-  it(`[a, 'b'].join('/')`, ()=> {
+  it(`[a, 'b'].join('/')`, () => {
     expect(compile(`[a, 'b'].join('/')`)).toEqual(`[a, "b"].join("/");`);
   });
 
@@ -2206,7 +2215,7 @@ extend(a, b);`;
 });
 
 describe('? operator', () => {
-  it('falls back to coffeescript compilation', ()=> {
+  it('falls back to coffeescript compilation', () => {
     const example = 'a() ? b';
     const expected =
 `var ref;
@@ -2216,47 +2225,47 @@ describe('? operator', () => {
 });
 
 describe('compound assignments', () => {
-  it(`a += 1`, ()=> {
+  it(`a += 1`, () => {
     expect(compile(`a += 1`)).toEqual(`a += 1;`);
   });
 
-  it(`a &= 1`, ()=> {
+  it(`a &= 1`, () => {
     expect(compile(`a &= 1`)).toEqual(`a &= 1;`);
   });
 
-  it(`a |= 1`, ()=> {
+  it(`a |= 1`, () => {
     expect(compile(`a |= 1`)).toEqual(`a |= 1;`);
   });
 
-  it(`a ^= 1`, ()=> {
+  it(`a ^= 1`, () => {
     expect(compile(`a ^= 1`)).toEqual(`a ^= 1;`);
   });
 
-  it(`a /= 1`, ()=> {
+  it(`a /= 1`, () => {
     expect(compile(`a /= 1`)).toEqual(`a /= 1;`);
   });
 
-  it(`a <<= 1`, ()=> {
+  it(`a <<= 1`, () => {
     expect(compile(`a <<= 1`)).toEqual(`a <<= 1;`);
   });
 
-  it(`a %= 1`, ()=> {
+  it(`a %= 1`, () => {
     expect(compile(`a %= 1`)).toEqual(`a %= 1;`);
   });
 
-  it(`a *= 1`, ()=> {
+  it(`a *= 1`, () => {
     expect(compile(`a *= 1`)).toEqual(`a *= 1;`);
   });
 
-  it(`a >>= 1`, ()=> {
+  it(`a >>= 1`, () => {
     expect(compile(`a >>= 1`)).toEqual(`a >>= 1;`);
   });
 
-  it(`a -= 1`, ()=> {
+  it(`a -= 1`, () => {
     expect(compile(`a -= 1`)).toEqual(`a -= 1;`);
   });
 
-  it(`a >>>= 1`, ()=> {
+  it(`a >>>= 1`, () => {
     expect(compile(`a >>>= 1`)).toEqual(`a >>>= 1;`);
   });
 });

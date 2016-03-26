@@ -721,7 +721,9 @@ function lastReturnStatement(nodeList = []) {
   if (nodeList.length > 0) {
     const lastIndex = nodeList.length - 1;
 
-    if (nodeList[lastIndex].type === 'IfStatement') {
+    if (nodeList[lastIndex].type === 'ThrowStatement') {
+      return nodeList;
+    } else if (nodeList[lastIndex].type === 'IfStatement') {
       nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
     } else {
       nodeList[lastIndex] =
