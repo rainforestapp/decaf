@@ -821,6 +821,21 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('static assignments with colon are handled equally', () => {
+    const example =
+`class Store
+  @a = 'A'
+  @b: 'B'
+`;
+
+    const expected =
+`class Store {
+  static a = "A";
+  static b = "B";
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('renders a simple class expression with a method', () => {
     const example =
 `class A
