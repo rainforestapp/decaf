@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/juliankrispel/decaf.svg)](https://travis-ci.org/juliankrispel/decaf)
 
-## A coffeescript to ES.next transpiler
+## A coffeescript to ES.next transpiler [Try it out online](http://www.goodafternoon.co/decaf/)
 
 Decaf grew out of the frustration of having to refactor coffeescript to modern JavaScript syntax. It does that for you automatically.
 
