@@ -247,7 +247,6 @@ function mapClassBodyElement(node, meta) {
   let isStatic = false;
   const type = node.constructor.name;
 
-
   if (type === 'Assign' && node.value) {
     node.value.name = node.variable.base.value;
     node.value.variable = node.variable;
@@ -260,6 +259,9 @@ function mapClassBodyElement(node, meta) {
 
   if (node.constructor.name === 'Assign' &&
       node.value && node.value.constructor.name !== 'Code') {
+    if (isStatic === true) {
+      return mapStaticClassProperty(node, meta);
+    }
     return mapClassProperty(node, meta);
   }
 
@@ -301,7 +303,8 @@ function unbindMethods(classElements) {
 }
 
 function mapStaticClassProperty(node, meta) {
-  return b.classProperty(mapExpression(node.variable.properties[0], meta), mapExpression(node.value, meta), null, true);
+  const variable = get(node, 'variable.properties[0]') || node.variable;
+  return b.classProperty(mapExpression(variable, meta), mapExpression(node.value, meta), null, true);
 }
 
 function mapClassExpressions(expressions, meta) {
