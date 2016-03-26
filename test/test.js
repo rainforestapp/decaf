@@ -618,6 +618,23 @@ bam = "bye";`;
     expect(compile(example)).toEqual(expected);
   });
 
+  it('throws an error when super is called in constructor with argument assigments', () => {
+    const example =
+`class A extends B
+  constructor: (@a, @b) ->
+    super
+    console.log(@a)`;
+    expect(compile.bind(this, example)).toThrow();
+  });
+
+  it('throws an error when super is called after this assignments', () => {
+    const example =
+`class A extends B
+  constructor: () ->
+    @a = 'boom'
+    super`;
+    expect(compile.bind(this, example)).toThrow();
+  });
 
   it('declares variables in class methods', () => {
     const example =

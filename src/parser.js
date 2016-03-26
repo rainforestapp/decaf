@@ -386,6 +386,7 @@ function mapClassExpression(node, meta) {
     parent = mapExpression(node.parent, meta);
   }
 
+
   return b.classExpression(
     mapExpression(node.variable, meta),
     mapClassBody(node.body, meta),
@@ -413,6 +414,7 @@ function mapClassDeclaration(node, meta) {
 
   if (node.parent !== undefined && node.parent !== null) {
     parent = mapExpression(node.parent, meta);
+    meta = Object.assign({}, meta, { extendedClass: true });
   }
 
   if (!node.variable) {
@@ -777,6 +779,32 @@ function addReturnStatementToBlock(node) {
   return node;
 }
 
+function detectIllegalSuper(node, meta) {
+  const superIndex = findIndex(get(node, 'body.expressions'), {isSuper: true});
+  const hasArgumentAssignments = any(node.params, {name: {this: true}});
+  const isConstructor = meta.superMethodName === 'constructor';
+  const isExtendedClass = meta.extendedClass;
+  const firstThisAssignmentIndex = findIndex(get(node, 'body.expressions'), {variable: {this: true}});
+  const superCall = get(node, 'body.expressions')[superIndex];
+
+  const hasArgumentAssignmentsAndSuperCall =
+    isExtendedClass &&
+    isConstructor &&
+    hasArgumentAssignments &&
+    superIndex > -1;
+
+  const hasSuperCallAfterThisAssignments =
+    isExtendedClass &&
+    firstThisAssignmentIndex > -1 &&
+    superIndex > firstThisAssignmentIndex;
+
+  if (hasArgumentAssignmentsAndSuperCall ||
+      hasSuperCallAfterThisAssignments) {
+    throw new Error(`Sorry, illegal super on line ${superCall.locationData.first_line}` +
+                    `, super must be called before 'this' assignments`);
+  }
+}
+
 function mapFunction(node, meta) {
   // Function {
   //   params: [],
@@ -784,6 +812,8 @@ function mapFunction(node, meta) {
   //   bound: Boolean
   // }
   const isGenerator = node.isGenerator;
+
+  detectIllegalSuper(node, meta);
 
   meta = Object.assign({}, meta, {scope: node.makeScope(meta.scope)});
 
