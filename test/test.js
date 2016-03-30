@@ -853,21 +853,15 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
-  it('can compile unnamed class expressions and prevent naming collisions', () => {
+  it('can compile unnamed class expressions', () => {
     const example =
 `class extends Parent
-  boom: ->
-class extends Parent
   boom: ->`;
 
     const expected =
-`class unnamedClass extends Parent {
+`(class extends Parent {
   boom() {}
-}
-
-class unnamedClass1 extends Parent {
-  boom() {}
-}`;
+});`;
     expect(compile(example)).toEqual(expected);
   });
 

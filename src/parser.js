@@ -418,10 +418,14 @@ function mapClassDeclaration(node, meta) {
   }
 
   if (!node.variable) {
-    return b.classDeclaration(
-      b.identifier(meta.scope.freeVariable('unnamedClass')),
-      mapClassBody(node.body, meta),
-      parent
+    return b.expressionStatement(
+      b.parenthesizedExpression(
+        b.classExpression(
+          null,
+          mapClassBody(node.body, meta),
+          parent
+        )
+      )
     );
   }
 
