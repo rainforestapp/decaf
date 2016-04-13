@@ -369,28 +369,36 @@ function mapClassBody(node, meta) {
     }
 
     // bind all the bound methods to the class
-    constructor.value.body.body =
-      constructor.value.body.body.concat(
-        boundMethods.map(identifier =>
-          b.expressionStatement(
-            b.assignmentExpression('=',
+    const body = constructor.value.body.body;
+    const hasSuper = !!findWhere(body, {
+      expression: {
+        callee: {
+          name: 'super',
+        },
+      },
+    });
+
+    body.splice(hasSuper ? 1 : body.length, 0,
+      ...boundMethods.map(identifier =>
+        b.expressionStatement(
+          b.assignmentExpression('=',
+            b.memberExpression(
+              b.thisExpression(),
+              identifier
+            ),
+            b.callExpression(
               b.memberExpression(
-                b.thisExpression(),
-                identifier
-              ),
-              b.callExpression(
                 b.memberExpression(
-                  b.memberExpression(
-                    b.thisExpression(),
-                    identifier
-                  ),
-                  b.identifier('bind')
+                  b.thisExpression(),
+                  identifier
                 ),
-                [b.thisExpression()]
-              )
+                b.identifier('bind')
+              ),
+              [b.thisExpression()]
             )
           )
         )
+      )
     );
   }
 

@@ -974,6 +974,30 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('binds fat arrow methods before the constructor body', () => {
+    const example =
+`class A
+  constructor: ->
+    super
+    document.addEventListener("event", this.b)
+
+  b: => bom + 123
+`;
+    const expected =
+`class A {
+  constructor() {
+    super(...arguments);
+    this.b = this.b.bind(this);
+    document.addEventListener("event", this.b);
+  }
+
+  b() {
+    return bom + 123;
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('extends a class with the extend keyword', () => {
     const example =
 `class A extends B
