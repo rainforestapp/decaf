@@ -1766,6 +1766,34 @@ describe('comprehensions', () => {
   });
 });
 
+describe('for loops with conditional', () => {
+  it('boom() for i in items when not false', () => {
+    const example = 'boom() for i in items when not false';
+    const expected =
+`for (let i of items) {
+  if (!false) {
+    boom();
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('for i in items when not false \n boom() ', () => {
+    const example =
+`for i in items when not false
+  boom()
+`;
+    const expected =
+`for (let i of items) {
+  if (!false) {
+    boom();
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+});
+
 describe('ranges', () => {
   it('[1...10]', () => {
     const example = `[1...10]`;
