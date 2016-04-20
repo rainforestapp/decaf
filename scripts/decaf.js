@@ -414,7 +414,7 @@ function mapClassDeclaration(node, meta) {
   }
 
   if (!node.variable) {
-    return _astTypes.builders.classDeclaration(_astTypes.builders.identifier(meta.scope.freeVariable('unnamedClass')), mapClassBody(node.body, meta), parent);
+    return _astTypes.builders.expressionStatement(_astTypes.builders.parenthesizedExpression(_astTypes.builders.classExpression(null, mapClassBody(node.body, meta), parent)));
   }
 
   return _astTypes.builders.classDeclaration(mapExpression(node.variable, meta), mapClassBody(node.body, meta), parent);
@@ -900,12 +900,21 @@ function mapSwitchStatement(node, meta) {
 }
 
 function mapForStatement(node, meta) {
+  var blockStatement = mapBlockStatement(node.body, meta);
+
+  // wrap blockStatement in a conditional if there
+  // is a conditional expression attached to the for
+  // loop
+  if (node.guard) {
+    blockStatement = _astTypes.builders.blockStatement([_astTypes.builders.ifStatement(mapOp(node.guard), blockStatement)]);
+  }
+
   if (node.object === false) {
     if (node.index === undefined) {
       var name = node.name === undefined ? _astTypes.builders.identifier('_i') : mapExpression(node.name, _extends({}, meta, { left: true }));
-      return _astTypes.builders.forOfStatement(_astTypes.builders.variableDeclaration('let', [_astTypes.builders.variableDeclarator(name, null)]), mapExpression(node.source, meta), mapBlockStatement(node.body, meta));
+      return _astTypes.builders.forOfStatement(_astTypes.builders.variableDeclaration('var', [_astTypes.builders.variableDeclarator(name, null)]), mapExpression(node.source, meta), blockStatement);
     }
-    return _astTypes.builders.forOfStatement(_astTypes.builders.variableDeclaration('let', [_astTypes.builders.variableDeclarator(_astTypes.builders.arrayPattern([mapExpression(node.index, meta), mapExpression(node.name, meta)]), null)]), _astTypes.builders.callExpression(_astTypes.builders.memberExpression(mapExpression(node.source, meta), _astTypes.builders.identifier('entries')), []), mapBlockStatement(node.body, meta));
+    return _astTypes.builders.forOfStatement(_astTypes.builders.variableDeclaration('var', [_astTypes.builders.variableDeclarator(_astTypes.builders.arrayPattern([mapExpression(node.index, meta), mapExpression(node.name, meta)]), null)]), _astTypes.builders.callExpression(_astTypes.builders.memberExpression(mapExpression(node.source, meta), _astTypes.builders.identifier('entries')), []), blockStatement);
   } else if (node.object === true) {
     var declaration = undefined;
     var method = undefined;
@@ -916,7 +925,8 @@ function mapForStatement(node, meta) {
       declaration = _astTypes.builders.arrayPattern([mapExpression(node.index, meta), mapExpression(node.name, meta)]);
       method = 'entries';
     }
-    return _astTypes.builders.forOfStatement(_astTypes.builders.variableDeclaration('let', [_astTypes.builders.variableDeclarator(declaration, null)]), _astTypes.builders.callExpression(_astTypes.builders.memberExpression(_astTypes.builders.identifier('Object'), _astTypes.builders.identifier(method)), [mapExpression(node.source, meta)]), mapBlockStatement(node.body, meta));
+
+    return _astTypes.builders.forOfStatement(_astTypes.builders.variableDeclaration('var', [_astTypes.builders.variableDeclarator(declaration, null)]), _astTypes.builders.callExpression(_astTypes.builders.memberExpression(_astTypes.builders.identifier('Object'), _astTypes.builders.identifier(method)), [mapExpression(node.source, meta)]), blockStatement);
   }
 }
 
