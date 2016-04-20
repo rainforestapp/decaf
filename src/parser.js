@@ -1003,7 +1003,7 @@ function mapForStatement(node, meta) {
       b.ifStatement(
       mapOp(node.guard),
       blockStatement
-      )
+      ),
     ]);
   }
 
