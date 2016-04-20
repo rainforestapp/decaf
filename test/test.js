@@ -951,6 +951,18 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('renders class expressions', () => {
+    const example =
+`class A
+  setup: _.once () ->`;
+    const expected =
+`class A {
+  setup = setup(function() {});
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+
   it('renders static class attributes', () => {
     const example =
 `class A
@@ -1791,7 +1803,6 @@ describe('for loops with conditional', () => {
 }`;
     expect(compile(example)).toEqual(expected);
   });
-
 });
 
 describe('ranges', () => {
