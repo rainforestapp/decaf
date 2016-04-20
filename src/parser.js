@@ -993,6 +993,20 @@ function mapSwitchStatement(node, meta) {
 }
 
 function mapForStatement(node, meta) {
+  let blockStatement = mapBlockStatement(node.body, meta);
+
+  // wrap blockStatement in a conditional if there
+  // is a conditional expression attached to the for
+  // loop
+  if (node.guard) {
+    blockStatement = b.blockStatement([
+      b.ifStatement(
+      mapOp(node.guard),
+      blockStatement
+      )
+    ]);
+  }
+
   if (node.object === false) {
     if (node.index === undefined) {
       const name = node.name === undefined
@@ -1004,7 +1018,7 @@ function mapForStatement(node, meta) {
           [b.variableDeclarator(name, null)]
         ),
         mapExpression(node.source, meta),
-        mapBlockStatement(node.body, meta)
+        blockStatement
       );
     }
     return b.forOfStatement(
@@ -1022,7 +1036,7 @@ function mapForStatement(node, meta) {
         ),
         []
       ),
-      mapBlockStatement(node.body, meta)
+      blockStatement
     );
   } else if (node.object === true) {
     let declaration;
@@ -1037,6 +1051,7 @@ function mapForStatement(node, meta) {
       ]);
       method = 'entries';
     }
+
     return b.forOfStatement(
       b.variableDeclaration(
         'let',
@@ -1049,7 +1064,7 @@ function mapForStatement(node, meta) {
         ),
         [mapExpression(node.source, meta)]
       ),
-      mapBlockStatement(node.body, meta)
+      blockStatement
     );
   }
 }
