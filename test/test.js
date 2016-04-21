@@ -636,6 +636,15 @@ bam = "bye";`;
     expect(compile.bind(this, example)).toThrow();
   });
 
+  it('doesn\'t throw an error when super is called within a method other than constructor', () => {
+    const example =
+`class A extends B
+  b: () ->
+    @a = 'boom'
+    super`;
+    expect(compile.bind(this, example)).toNotThrow();
+  });
+
   it('declares variables in class methods', () => {
     const example =
 `class A extends B
@@ -821,6 +830,12 @@ describe('FunctionExpression', () => {
   this.a = a;
   return console.log(a, b);
 };`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('turns empty object or array parameter into normal parameter, prevents naming collisions', () => {
+    const example = 'fn = ({}, bo, [], ba) ->';
+    const expected = `var fn = function(arg, bo, arg1, ba) {};`;
     expect(compile(example)).toEqual(expected);
   });
 });
