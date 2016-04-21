@@ -189,6 +189,13 @@ function mapOp(node, meta) {
 
 function mapArguments(args, meta) {
   return args.map(arg => {
+    const argName = get(arg.name, 'constructor.name');
+    if ((argName === 'Obj' && arg.name.objects.length === 0) ||
+        (argName === 'Arr' && arg.name.objects.length === 0)
+       ) {
+      return b.identifier(meta.scope.freeVariable('arg'));
+    }
+
     if (arg.constructor.name === 'Expansion') {
       return b.restElement(b.identifier(meta.scope.freeVariable('args')));
     }
@@ -799,6 +806,7 @@ function detectIllegalSuper(node, meta) {
 
   const hasSuperCallAfterThisAssignments =
     isExtendedClass &&
+    isConstructor &&
     firstThisAssignmentIndex > -1 &&
     superIndex > firstThisAssignmentIndex;
 
