@@ -825,6 +825,7 @@ function mapFunction(node, meta) {
   // }
   const isGenerator = node.isGenerator;
 
+  // throw an error when there's an illegal super statement
   detectIllegalSuper(node, meta);
 
   meta = Object.assign({}, meta, {scope: node.makeScope(meta.scope)});
@@ -901,7 +902,13 @@ function insertSuperCall(path) {
       classMethods[constructorIndex]
         .value.body.body
         .unshift(
-          b.expressionStatement(b.callExpression(b.identifier('super'), [])));
+          b.expressionStatement(
+            b.callExpression(
+              b.identifier('super'),
+              [b.spreadElement(b.identifier('arguments'))]
+            )
+          )
+        );
     }
   }
 }
