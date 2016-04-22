@@ -960,23 +960,26 @@ describe('ClassExpression', () => {
   b: [1,2,3,4]
 `;
     const expected =
-`class A {
-  b = [1, 2, 3, 4];
-}`;
+`class A {}
+A.prototype.b = [1, 2, 3, 4];`;
     expect(compile(example)).toEqual(expected);
   });
 
-  it('renders class expressions', () => {
+  it('renders class instance fields', () => {
     const example =
 `class A
-  setup: _.once () ->`;
+  setup: _.once () ->
+  c: () ->
+  bam: 123`;
     const expected =
 `class A {
-  setup = setup(function() {});
-}`;
+  c() {}
+}
+
+A.prototype.setup = _.once(function() {});
+A.prototype.bam = 123;`;
     expect(compile(example)).toEqual(expected);
   });
-
 
   it('renders static class attributes', () => {
     const example =
@@ -987,8 +990,9 @@ describe('ClassExpression', () => {
     const expected =
 `class A {
   static b = [1, 2, 3, 4];
-  c = [1, 2, 3, 4];
-}`;
+}
+
+A.prototype.c = [1, 2, 3, 4];`;
     expect(compile(example)).toEqual(expected);
   });
 
