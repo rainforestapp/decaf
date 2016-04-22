@@ -216,7 +216,7 @@ function mapArguments(args, meta) {
 
 function mapCall(node, meta) {
   let left;
-  const superMethodName = meta.superMethodName;
+  const {superMethodName} = meta;
 
   // fallback early if variable name contains an existential operator
   if (node.variable && (findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1 ||
@@ -252,12 +252,12 @@ function mapClassBodyElement(node, meta) {
   const superMethodName = node.variable.base.value;
   let elementType = 'method';
   let isStatic = false;
-  const type = node.constructor.name;
+  // const type = node.constructor.name;
 
-  if (type === 'Assign' && node.value) {
-    node.value.name = node.variable.base.value;
-    node.value.variable = node.variable;
-  }
+  //  if (type === 'Assign' && node.value) {
+  //    node.value.name = node.variable.base.value;
+  //    node.value.variable = node.variable;
+  //  }
 
   if (node.variable.this === true) {
     isStatic = true;
@@ -279,6 +279,7 @@ function mapClassBodyElement(node, meta) {
   const _meta = Object.assign(
     {},
     meta,
+    {isSuperMethod: true},
     {superMethodName});
 
   return b.methodDefinition(
@@ -323,7 +324,11 @@ function mapClassExpressions(expressions, meta) {
         return arr.concat([mapStaticClassProperty(expr, meta)]);
       }
     } else if (type === 'Value') {
-      classElements = expr.base.properties;
+      classElements = expr.base.properties
+      // filter out instance field variables
+      .filter(prop => !(get(prop, 'operatorToken.value') === ':' &&
+                        get(prop, 'value.constructor.name') !== 'Code' &&
+                       get(prop, 'variable.base.value') !== 'this'));
       classElements = unbindMethods(classElements);
       classElements = classElements.filter(el => el.constructor.name !== 'Comment');
       classElements = classElements.map(el => mapClassBodyElement(el, meta));
@@ -623,7 +628,37 @@ function mapStatement(node, meta) {
 }
 
 function mapBlockStatements(node, meta) {
-  return node.expressions.map(expr => mapStatement(expr, meta));
+  return flatten(node.expressions.map(expr => {
+    const type = expr.constructor.name;
+    let prototypeProps = [];
+    if (type === 'Class') {
+      // extract prototype assignments
+      prototypeProps = flatten(expr.body.expressions
+        .filter(ex => (ex.constructor.name === 'Value'))
+        .map(ex => (ex.base.properties)))
+        .filter(ex => (get(ex, 'operatorToken.value') === ':' &&
+                       get(ex, 'value.constructor.name') !== 'Code' &&
+                       get(ex, 'variable.base.value') !== 'this'))
+        .filter(ex => get(ex, 'value.constructor.name') !== 'Code')
+        .map(ex => (
+          b.expressionStatement(
+            b.assignmentExpression(
+              '=',
+              b.memberExpression(
+                b.memberExpression(
+                  mapExpression(expr.variable),
+                  b.identifier('prototype')
+                ),
+                mapExpression(ex.variable, meta)
+              ),
+              mapExpression(ex.value, meta)
+            )
+          )
+        ));
+    }
+
+    return [mapStatement(expr, meta)].concat(prototypeProps);
+  }));
 }
 
 function addVariablesToScope(nodes = [], meta, context = false) {
@@ -824,11 +859,12 @@ function mapFunction(node, meta) {
   //   bound: Boolean
   // }
   const isGenerator = node.isGenerator;
+  const isConstructor = meta.superMethodName === 'constructor' && meta.isSuperMethod;
 
   // throw an error when there's an illegal super statement
   detectIllegalSuper(node, meta);
 
-  meta = Object.assign({}, meta, {scope: node.makeScope(meta.scope)});
+  meta = Object.assign({}, meta, {scope: node.makeScope(meta.scope)}, {isSuperMethod: false});
 
   let args = mapArguments(node.params, meta);
   // restIndex is the location of the splat argument
@@ -878,7 +914,7 @@ function mapFunction(node, meta) {
   }
 
   let block = mapBlockStatement(node.body, meta);
-  if (isGenerator === false && node.name !== 'constructor') {
+  if (isGenerator === false && !isConstructor) {
     block = addReturnStatementToBlock(block, meta);
   }
 
