@@ -105,15 +105,7 @@ function mapSlice(node, meta) {
   const {range} = node;
   const args = [range.from ? mapExpression(range.from, meta) : b.literal(0)];
   if (range.to) {
-    let to = mapExpression(range.to, meta);
-    if (!range.exclusive) {
-      if (to.type === 'Literal' && typeof to.value === 'number' && Math.round(to.value) === to.value) {
-        to.value += 1;
-      } else {
-        to = b.binaryExpression('+', to, b.literal(1));
-      }
-    }
-    args.push(to);
+    args.push(mapExpression(range.to, meta));
   }
   return b.callExpression(b.identifier('slice'), args);
 }
@@ -328,7 +320,7 @@ function mapClassExpressions(expressions, meta) {
       // filter out instance field variables
       .filter(prop => !(get(prop, 'operatorToken.value') === ':' &&
                         get(prop, 'value.constructor.name') !== 'Code' &&
-                       get(prop, 'variable.base.value') !== 'this'));
+                        get(prop, 'variable.base.value') !== 'this'));
       classElements = unbindMethods(classElements);
       classElements = classElements.filter(el => el.constructor.name !== 'Comment');
       classElements = classElements.map(el => mapClassBodyElement(el, meta));
@@ -528,41 +520,22 @@ function mapIfStatement(node, meta) {
   );
 }
 
-function isStatement(expr) {
-  const type = expr.constructor.name;
-  switch (type) {
-    case 'Literal':
-      if (expr.value === 'break' || expr.value === 'continue') {
-        return true;
-      }
-      return false;
-    case 'Throw':
-    case 'For':
-    case 'While':
-    case 'Return':
-    case 'If':
-    case 'Break':
-      return true;
-    default:
-      return false;
-  }
+function isTernaryOperation(node) {
+  const regex = /^(Literal|Code)/;
+
+  return (
+    get(node, 'body.expressions.length') === 1 &&
+    regex.test(get(node, 'body.expressions[0].base.constructor.name')) &&
+    regex.test(get(node, 'elseBody.expressions[0].base.constructor.name')) &&
+    get(node, 'elseBody.expressions.length') === 1
+  );
 }
 
 function mapConditionalStatement(node, meta) {
-  // If the conditional has more than one test
-  // or more than one expression in either block we
-  // create an if statement otherwise we use a conditional
-  // expression
-
-  if (
-    node.elseBody && node.elseBody.expressions.length > 1 ||
-    node.body && node.body.expressions.length > 1 ||
-    node.body && any(node.body.expressions, expr => isStatement(expr)) ||
-    node.elseBody && any(node.elseBody.expressions, expr => isStatement(expr))) {
-    return mapIfStatement(node, meta);
+  if (isTernaryOperation(node)) {
+    return b.expressionStatement(mapConditionalExpression(node, meta));
   }
-
-  return b.expressionStatement(mapConditionalExpression(node, meta));
+  return mapIfStatement(node, meta);
 }
 
 function mapTryCatchBlock(node, meta) {
@@ -617,7 +590,7 @@ function mapStatement(node, meta) {
   } else if (type === 'Class') {
     return mapClassDeclaration(node, meta);
   } else if (type === 'Switch') {
-    return addBreakStatementsToSwitch(mapSwitchStatement(node, meta));
+    return mapSwitchStatement(node, meta);
   } else if (type === 'If') {
     return mapConditionalStatement(node, meta);
   } else if (type === 'Try') {
@@ -783,7 +756,9 @@ function lastReturnStatement(nodeList = []) {
   if (nodeList.length > 0) {
     const lastIndex = nodeList.length - 1;
 
-    if (nodeList[lastIndex].type === 'ThrowStatement') {
+    if (nodeList[lastIndex].type === 'SwitchStatement') {
+      nodeList[lastIndex] = addReturnStatementsToSwitch(nodeList[lastIndex]);
+    } else if (nodeList[lastIndex].type === 'ThrowStatement') {
       return nodeList;
     } else if (nodeList[lastIndex].type === 'IfStatement') {
       nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
@@ -797,7 +772,8 @@ function lastReturnStatement(nodeList = []) {
 }
 
 function lastBreakStatement(nodeList = []) {
-  if (nodeList.length > 0) {
+  const returns = nodeList.filter(node => node.type === 'ReturnStatement');
+  if (returns.length < 1 && nodeList.length > 0) {
     nodeList.push(b.breakStatement());
   }
   return nodeList;
@@ -914,6 +890,7 @@ function mapFunction(node, meta) {
   }
 
   let block = mapBlockStatement(node.body, meta);
+
   if (isGenerator === false && !isConstructor) {
     block = addReturnStatementToBlock(block, meta);
   }
@@ -961,12 +938,34 @@ function insertSuperCalls(ast) {
   return ast;
 }
 
+function findNodeParent(node, matcher) {
+  if (node.parent) {
+    if (matcher(node.parent)) {
+      return node.parent;
+    }
+    return findNodeParent(node.parent, matcher);
+  }
+}
+
+function insertBreakStatements(ast) {
+  jsc(ast)
+  // find all switch statements
+  .find(jsc.SwitchStatement)
+  .forEach(node => (
+    jsc(node).replaceWith(path => addBreakStatementsToSwitch(path.value))
+  ));
+  return ast;
+}
+
 function insertVariableDeclarations(ast) {
   jsc(ast)
-  .find(jsc.AssignmentExpression, node =>
+  // first we're going to find all assignments in our code
+  .find(jsc.AssignmentExpression, node => (
     !n.MemberExpression.check(node.left) &&
     get(node, 'operator') === '='
-  )
+  ))
+  // then we're going to search for the uppermost assignment
+  // of similarly named variables
   .forEach(path => {
     // There's something weird with AssignmentExpressions vs. AssignmentPatterns in function arguments that
     // causes scope.lookup to not find the definition properly.
@@ -975,7 +974,11 @@ function insertVariableDeclarations(ast) {
     }
     const needle = path.value.left.name;
     if (!path.scope.lookup(needle)) {
-      if (path.parent && path.parent.value.type === 'ExpressionStatement') {
+      const blockNode = findNodeParent(path, node => get(node, 'value.type') === 'BlockStatement');
+      if (path.parent &&
+          get(path, 'parent.parent.value.type') !== 'SwitchCase' &&
+          path.parent.value.type === 'ExpressionStatement' &&
+          get(blockNode, 'parent.value.type') !== 'IfStatement') {
         jsc(path).replaceWith(_path =>
           b.variableDeclaration(
             'var',
@@ -988,6 +991,7 @@ function insertVariableDeclarations(ast) {
         path.scope.scan(true);
       } else {
         path.scope.injectTemporary(path.value.left);
+        path.scope.scan(true);
       }
     }
   });
@@ -1230,8 +1234,9 @@ function addReturnStatementsToSwitch(node) {
 }
 
 function addBreakStatementsToSwitch(node) {
-  node.cases = node.cases.map(switchCase => {
-    if (switchCase.test !== null) {
+  node.cases = node.cases.map((switchCase, index) => {
+    const isLastCase = (index + 1) === node.cases.length;
+    if (switchCase.test !== null && !isLastCase) {
       switchCase.consequent = lastBreakStatement(switchCase.consequent);
     }
     return switchCase;
@@ -1522,6 +1527,7 @@ export function compile(source, opts, parse = coffeeParse) {
     compiledSource => Object.assign({}, compiledSource, {code: compiledSource.code.replace(doubleSemicolon, ';')}),
     jsAst => recast.print(jsAst, opts),
     insertSuperCalls,
+    insertBreakStatements,
     insertVariableDeclarations,
     csAst => transpile(csAst, {options: opts}),
     parse);

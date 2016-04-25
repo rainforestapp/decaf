@@ -441,13 +441,19 @@ describe('parenthesized expressions', () => {
 
   it(`foo('bar') unless a && b`, () => {
     const example = `foo('bar') unless a && b`;
-    const expected = `(!(a && b) ? foo("bar") : undefined);`;
+    const expected =
+`if (!(a && b)) {
+  foo("bar");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
   it(`foo('bar') if !(a && b && !(c && d))`, () => {
     const example = `foo('bar') if !(a && b && !(c && d))`;
-    const expected = `(!(a && b && !(c && d)) ? foo("bar") : undefined);`;
+    const expected =
+`if (!(a && b && !(c && d))) {
+  foo("bar");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 });
@@ -1058,14 +1064,14 @@ A.prototype.c = [1, 2, 3, 4];`;
   constructor: ()->
     fn = (foo)->
       foo = 'foo'
-      bar = 'dw'
+      bar = 'foobar'
       super a + 'b'`;
     const expected =
 `class A {
   constructor() {
     var fn = function(foo) {
       foo = "foo";
-      var bar = "dw";
+      var bar = "foobar";
       return super(a + "b");
     };
   }
@@ -1296,7 +1302,9 @@ if explosion is true
   alert 'BOOM'
 `;
     const expected =
-`(explosion === true ? alert("BOOM") : undefined);`;
+`if (explosion === true) {
+  alert("BOOM");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -1327,7 +1335,9 @@ if explosion is true
 `;
     const expected =
 `if (explosion === true) {
-  (fake !== false ? alert("BOOM") : undefined);
+  if (fake !== false) {
+    alert("BOOM");
+  }
 }`;
     expect(compile(example)).toEqual(expected);
   });
@@ -1337,7 +1347,10 @@ if explosion is true
 `if explosion is true and boom is false and other
   alert 'BOOM'
 `;
-    const expected = `(explosion === true && boom === false && other ? alert("BOOM") : undefined);`;
+    const expected =
+`if (explosion === true && boom === false && other) {
+  alert("BOOM");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -1370,19 +1383,48 @@ else
     const example =
 `unless explosion is false
   alert 'BOOM'`;
-    const expected = `(explosion !== false ? alert("BOOM") : undefined);`;
+    const expected =
+`if (explosion !== false) {
+  alert("BOOM");
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('avoids multiple declarations of the same variable', () => {
+    const example =
+`switch word
+  when 'hello'
+    a = 'boom'
+  else
+    a = 'bim'`;
+    const expected =
+`var a;
+
+switch (word) {
+case "hello":
+  a = "boom";
+  break;
+default:
+  a = "bim";
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('maps reverse if statements', () => {
     const example = `console.log 'boom' if condition is true`;
-    const expected = `(condition === true ? console.log("boom") : undefined);`;
+    const expected =
+`if (condition === true) {
+  console.log("boom");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('maps long reverse if statements', () => {
     const example = `console.log 'boom' if condition is true and bam isnt false`;
-    const expected = `(condition === true && bam !== false ? console.log("boom") : undefined);`;
+    const expected =
+`if (condition === true && bam !== false) {
+  console.log("boom");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -1443,13 +1485,13 @@ catch err
 `try
   boom()
 catch err
-  bam = 'dw'
+  bam = 'boofar'
   console.log 'boom'`;
     const expected =
 `try {
   boom();
 } catch (err) {
-  var bam = "dw";
+  var bam = "boofar";
   console.log("boom");
 }`;
     expect(compile(example)).toEqual(expected);
@@ -1546,7 +1588,6 @@ default:
 case "joe":
 case "anne":
   say("hi");
-  break;
 }`;
     expect(compile(example)).toEqual(expected);
   });
@@ -1959,6 +2000,12 @@ describe('slices', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('bam[1...-1]', () => {
+    const example = `bam[1...-1]`;
+    const expected = `bam.slice(1, -1);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('bam[a()...b()]', () => {
     const example = `bam[a()...b()]`;
     const expected = `bam.slice(a(), b());`;
@@ -1973,19 +2020,19 @@ describe('slices', () => {
 
   it('bam[1..10]', () => {
     const example = `bam[1..10]`;
-    const expected = `bam.slice(1, 11);`;
+    const expected = `bam.slice(1, 10);`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('bam[1..10.5]', () => {
     const example = `bam[1..10.5]`;
-    const expected = `bam.slice(1, 10.5 + 1);`;
+    const expected = `bam.slice(1, 10.5);`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('bam[a()..b()]', () => {
     const example = `bam[a()..b()]`;
-    const expected = `bam.slice(a(), b() + 1);`;
+    const expected = `bam.slice(a(), b());`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -1997,7 +2044,7 @@ describe('slices', () => {
 
   it('bam[..1]', () => {
     const example = `bam[..1]`;
-    const expected = `bam.slice(0, 2);`;
+    const expected = `bam.slice(0, 1);`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -2066,7 +2113,10 @@ describe('conditional expressions', () => {
 
   it(`console.log "boom" if "a" of b`, () => {
     const example = `console.log "boom" if "a" of b`;
-    const expected = `("a" in b ? console.log("boom") : undefined);`;
+    const expected =
+`if ("a" in b) {
+  console.log("boom");
+}`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -2109,10 +2159,12 @@ describe('conditional expressions', () => {
       abc`;
     const expected =
 `var b = (() => {
+  var abc;
+
   if (a === "loo") {
     return "boom";
   } else if (boom() === 2) {
-    var abc = "bom" + 123;
+    abc = "bom" + 123;
     return abc;
   }
 })();`;
@@ -2135,7 +2187,9 @@ describe('return statements', () => {
   case "b":
     return "c";
   case "c":
-    return (c === "d" ? c = b : undefined);
+    if (c === "d") {
+      return c = b;
+    }
   }
 })();`;
     expect(compile(example)).toEqual(expected);
@@ -2150,16 +2204,20 @@ describe('return statements', () => {
       when 'c'
         c = b if c is 'd'`;
     const expected =
-`var a = (b !== true ? (() => {
+`var a = (() => {
   var c;
 
-  switch (a) {
-  case "b":
-    return "c";
-  case "c":
-    return (c === "d" ? c = b : undefined);
+  if (b !== true) {
+    switch (a) {
+    case "b":
+      return "c";
+    case "c":
+      if (c === "d") {
+        return c = b;
+      }
+    }
   }
-})() : undefined);`;
+})();`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -2170,8 +2228,10 @@ describe('return statements', () => {
     switch a
       when 'b' then 'c'
       when 'c'
-        c = b if c is 'd'
+        if c is "d"
+          c = b;
     123`;
+
     const expected =
 `var a = (() => {
   var c;
@@ -2182,13 +2242,15 @@ describe('return statements', () => {
       "c";
       break;
     case "c":
-      (c === "d" ? c = b : undefined);
-      break;
+      if (c === "d") {
+        c = b;
+      }
     }
 
     return 123;
   }
 })();`;
+
     expect(compile(example)).toEqual(expected);
   });
 });
