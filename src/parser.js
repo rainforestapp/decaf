@@ -378,7 +378,7 @@ function mapClassBody(node, meta) {
       },
     });
 
-    body.splice(hasSuper ? 1 : body.length, 0,
+    body.splice(hasSuper ? 1 : 0, 0,
       ...boundMethods.map(identifier =>
         b.expressionStatement(
           b.assignmentExpression('=',
