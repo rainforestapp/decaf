@@ -943,6 +943,10 @@ function mapFunction(node, meta) {
     setupStatements = tailStatements.concat(setupStatements);
   }
 
+  // since we are going to be using an arrow function, we can throw away the special
+  // context that CoffeeScript created for us
+  meta.scope.method.context = 'this';
+
   let block = mapBlockStatement(node.body, meta);
 
   if (isGenerator === false && !isConstructor) {

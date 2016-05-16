@@ -318,6 +318,15 @@ var yo = typeof a !== "undefined" && a !== null ? \
 ((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0;`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('doSomething (foo) => @bar.baz?.qux', () => {
+    const example = 'doSomething (foo) => @bar?';
+    const expected =
+`doSomething(foo => {
+  return this.bar != null;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('Boolean Expression', () => {
