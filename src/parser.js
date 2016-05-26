@@ -1155,7 +1155,7 @@ function mapForStatement(node, meta) {
         : mapExpression(node.name, Object.assign({}, meta, { left: true }));
       return b.forOfStatement(
         b.variableDeclaration(
-          'let',
+          'const',
           [b.variableDeclarator(name, null)]
         ),
         mapExpression(node.source, meta),
@@ -1164,7 +1164,7 @@ function mapForStatement(node, meta) {
     }
     return b.forOfStatement(
       b.variableDeclaration(
-        'let',
+        'const',
         [b.variableDeclarator(b.arrayPattern([
           mapExpression(node.index, meta),
           mapExpression(node.name, meta),
@@ -1194,7 +1194,7 @@ function mapForStatement(node, meta) {
     }
     return b.forOfStatement(
       b.variableDeclaration(
-        'let',
+        'const',
         [b.variableDeclarator(declaration, null)]
       ),
       b.callExpression(
