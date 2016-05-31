@@ -18,8 +18,6 @@ const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
 
-const STRING_INSIDE_QUOTES = /^['"](.*)['"]$/;
-
 function mapBoolean(node) {
   if (node.base.val === 'true') {
     return b.literal(true);
@@ -66,7 +64,7 @@ function mapLiteral(node) {
   if (value === 'NaN') {
     return b.literal(NaN);
   } else if (IS_STRING.test(value)) {
-    return b.literal(value.match(STRING_INSIDE_QUOTES)[1]);
+    return b.literal(eval(value)); // eslint-disable-line no-eval
   } else if (IS_NUMBER.test(value)) {
     return b.literal(Number(value));
   } else if (IS_REGEX.test(value)) {

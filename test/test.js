@@ -11,6 +11,10 @@ function compile(source) {
 describe('Values', () => {
   it('strings', () => {
     expect(compile('"yoyoyo"')).toEqual('"yoyoyo";');
+    expect(compile(`"#{_.escape(text).replace(/\\n/g, '<br>')}<br>"`)).toEqual(`(_.escape(text).replace(/\\n/g, "<br>")) + "<br>";`);
+    expect(compile(`'\\''`)).toEqual(`"'";`);
+    expect(compile(`"\\""`)).toEqual(`"\\"";`);
+    expect(compile(`"\\\\\\\\"`)).toEqual(`"\\\\";`);
   });
 
   it('numbers', () => {
@@ -63,6 +67,18 @@ describe('multiline strings', () => {
 "
 """`;
     const expected = String.raw`"\"";`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('should escape more complex strings properly', () => {
+    const example =
+`"""
+<div id="outer" style="height: #{CONTAINER_HEIGHT}px; overflow: scroll">
+  <div id="inner" style="height: #{CONTENT_HEIGHT}px"></div>
+</div>
+"""`;
+
+    const expected = `"<div id=\\"outer\\" style=\\"height: " + (CONTAINER_HEIGHT) + "px; overflow: scroll\\">\\n  <div id=\\"inner\\" style=\\"height: " + (CONTENT_HEIGHT) + "px\\"></div>\\n</div>";`; // eslint-disable-line max-len
     expect(compile(example)).toEqual(expected);
   });
 });
