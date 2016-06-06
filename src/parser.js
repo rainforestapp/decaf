@@ -158,6 +158,14 @@ function mapOp(node, meta) {
       !node.flip);
   }
 
+  if (node.properties) {
+    return mapExpression(node, meta);
+  }
+
+  if (node.args) {
+    return mapCall(node, meta);
+  }
+
   if (!node.second) {
     return b.unaryExpression(
       operator,
@@ -1040,6 +1048,20 @@ function mapSwitchStatement(node, meta) {
   );
 }
 
+function mapForGuard(guardNode, blockStatement, meta) {
+  const isExistential = guardNode.constructor.name === 'Existence';
+  const guardClause = isExistential ?
+    mapExistentialExpression(guardNode, meta) :
+    mapOp(guardNode.expression || guardNode, meta);
+
+  return b.blockStatement([
+    b.ifStatement(
+      guardClause,
+      blockStatement
+    ),
+  ]);
+}
+
 function mapForStatement(node, meta) {
   let blockStatement = mapBlockStatement(node.body, meta);
 
@@ -1047,12 +1069,7 @@ function mapForStatement(node, meta) {
   // is a conditional expression attached to the for
   // loop
   if (node.guard) {
-    blockStatement = b.blockStatement([
-      b.ifStatement(
-      mapOp(node.guard),
-      blockStatement
-      ),
-    ]);
+    blockStatement = mapForGuard(node.guard, blockStatement, meta);
   }
 
   if (node.object === false) {
