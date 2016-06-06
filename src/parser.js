@@ -25,7 +25,7 @@ function mapBoolean(node) {
     return b.literal(false);
   }
 
-  throw new Error(`can't convert node of type: ${node.constructor.name} to boolean - not recognized`);
+  throwError(node.locationData, `can't convert node of type: ${node.constructor.name} to boolean - not recognized`);
 }
 
 function stringToRegex(inputstring) {
@@ -135,7 +135,7 @@ function mapValue(node, meta) {
     return b.sequenceExpression(node.base.body.expressions.map(expr => mapExpression(expr, meta)));
   }
 
-  throw new Error(`can't convert node of type: ${type} to value - not recognized`);
+  throwError(node.locationData, `can't convert node of type: ${type} to value - not recognized`);
 }
 
 function mapOp(node, meta) {
@@ -341,11 +341,22 @@ function mapClassExpressions(expressions, meta) {
   }, []);
 }
 
+function disallowPrivateClassStatements(node) {
+  if (any(node.expressions, expr => (
+    expr.constructor.name === 'Call' ||
+    (expr.constructor.name === 'Assign' && get(expr, 'variable.this') !== true)
+  ))) {
+    throwError(node.locationData, 'Private Class statements are not allowed.');
+  }
+}
+
 function mapClassBody(node, meta) {
   const {expressions} = node;
   const boundMethods = getBoundMethodNames(expressions, meta);
   const classElements = mapClassExpressions(expressions, meta);
   let constructor = findWhere(classElements, {kind: 'constructor'});
+
+  disallowPrivateClassStatements(node);
 
   if (boundMethods.length > 0) {
     if (constructor === undefined) {
@@ -829,9 +840,14 @@ function detectIllegalSuper(node, meta) {
 
   if (hasArgumentAssignmentsAndSuperCall ||
       hasSuperCallAfterThisAssignments) {
-    throw new Error(`Sorry, illegal super on line ${superCall.locationData.first_line}` +
-                    `, super must be called before 'this' assignments`);
+    throwError(
+      superCall.locationData,
+      'Illegal use of super() in constructor. super must be called before any this assignments');
   }
+}
+
+function throwError(locData, msg) {
+  throw new Error(`[${locData.first_line}:${locData.first_column}] - ${msg}`);
 }
 
 function mapFunction(node, meta) {
@@ -1428,7 +1444,7 @@ function mapExpression(node, meta) {
     return mapCall(node, meta);
   }
 
-  throw new Error(`can't convert node of type: ${type} to Expression - not recognized`);
+  throwError(node.locationData, `can't convert node of type: ${type} to Expression - not recognized`);
 }
 
 function mapParamToAssignment(node) {
@@ -1483,7 +1499,7 @@ function mapObjectPatternItem(node, meta) {
     return mapExpression(node.value, meta);
   }
 
-  throw new Error(`can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
+  throwError(node.locationData, `can't convert node of type: ${type} to ObjectPatternItem - not recognized`);
 }
 
 function mapObjectPattern(nodes, meta) {

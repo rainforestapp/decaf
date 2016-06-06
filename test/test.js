@@ -11,7 +11,8 @@ function compile(source) {
 describe('Values', () => {
   it('strings', () => {
     expect(compile('"yoyoyo"')).toEqual('"yoyoyo";');
-    expect(compile(`"#{_.escape(text).replace(/\\n/g, '<br>')}<br>"`)).toEqual(`(_.escape(text).replace(/\\n/g, "<br>")) + "<br>";`);
+    expect(compile(`"#{_.escape(text).replace(/\\n/g, '<br>')}<br>"`))
+     .toEqual(`(_.escape(text).replace(/\\n/g, "<br>")) + "<br>";`);
     expect(compile(`'\\''`)).toEqual(`"'";`);
     expect(compile(`"\\""`)).toEqual(`"\\"";`);
     expect(compile(`"\\\\\\\\"`)).toEqual(`"\\\\";`);
@@ -121,8 +122,21 @@ describe('throw statements', () => {
   });
 });
 
+describe('private class statements', () => {
+  it('throws an error when private statements are used in a class definition', () => {
+    const example =
+`class A
+  boom()
+  a = 123
+  @a = 43214
+  a: () ->
+`;
+    expect(compile.bind(this, example)).toThrow();
+  });
+});
+
 describe('Comment', () => {
-  it('doesn\'t break class declaration and excludes comments', () => {
+  it("doesn't break class declaration and excludes comments", () => {
     const example =
 `class A
   ###
@@ -627,7 +641,7 @@ bam = "bye";`;
     expect(compile(example)).toEqual(expected);
   });
 
-  it('declares variables in in class methods if they aren\'t shadowed by method parameters', () => {
+  it("declares variables in in class methods if they aren't shadowed by method parameters", () => {
     const example =
 `class A extends B
   a: (a) ->
