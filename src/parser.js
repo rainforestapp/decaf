@@ -939,6 +939,38 @@ function insertSuperCalls(ast) {
   return ast;
 }
 
+function isArrayAssignmentWithThisReference(path) {
+  const assignedPath = path.value && path.value.left;
+  const isArrayAssignment = assignedPath && assignedPath.type === 'ArrayExpression';
+  const hasMemberExpressions = isArrayAssignment && jsc(assignedPath).find('MemberExpression').size() > 0;
+
+  return isArrayAssignment && hasMemberExpressions;
+}
+
+function insertArrayAssignmentVarDeclarations(assignmentPath) {
+  const identifiers = jsc(assignmentPath.value.left)
+    .find(jsc.Identifier)
+    .filter(path => path.parentPath.name === 'elements')
+    .paths()
+    .map(path => path.value.name);
+
+  if (identifiers.length > 0) {
+    identifiers.forEach(id =>
+      assignmentPath.scope.injectTemporary(jsc.identifier(id), null)
+    );
+  }
+}
+
+function getAssignmentIdentifiers(path) {
+  const elements = path.value && path.value.left && path.value.left.elements;
+  if (!elements) {
+    return null;
+  }
+
+  const inScopeIds = elements.filter(element => element.type !== jsc.MemberExpression.name);
+  return new Set(inScopeIds);
+}
+
 function findNodeParent(node, matcher) {
   if (node.parent) {
     if (matcher(node.parent)) {
@@ -976,7 +1008,9 @@ function insertVariableDeclarations(ast) {
     const needle = path.value.left.name;
     if (!path.scope.lookup(needle)) {
       const blockNode = findNodeParent(path, node => get(node, 'value.type') === 'BlockStatement');
-      if (path.parent &&
+      if (path.parent && path.parent.value.type === 'ExpressionStatement' && isArrayAssignmentWithThisReference(path)) {
+        insertArrayAssignmentVarDeclarations(path);
+      } else if (path.parent &&
           get(path, 'parent.parent.value.type') !== 'SwitchCase' &&
           path.parent.value.type === 'ExpressionStatement' &&
           get(blockNode, 'parent.value.type') !== 'IfStatement') {
@@ -991,7 +1025,10 @@ function insertVariableDeclarations(ast) {
         );
         path.scope.scan(true);
       } else {
-        path.scope.injectTemporary(path.value.left);
+        const identifiers = getAssignmentIdentifiers(path) || [path.value.left];
+        identifiers.forEach(id =>
+          path.scope.injectTemporary(id)
+        );
         path.scope.scan(true);
       }
     }
