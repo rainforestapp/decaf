@@ -537,33 +537,28 @@ function mapConditionalStatement(node, meta) {
 }
 
 function mapTryCatchBlock(node, meta) {
-  let recovery;
-  let errorVar;
   let finalize = null;
+  let catchBlock = null;
+  if (node.recovery) {
+    const recovery = mapBlockStatement(node.recovery, meta);
+    const errorVar = mapLiteral({base: node.errorVariable}, meta);
+
+    catchBlock = b.catchClause(
+      errorVar,
+      null,
+      recovery
+    );
+  }
 
   if (node.ensure) {
     finalize = mapBlockStatement(node.ensure, meta);
-  }
-
-  if (node.recovery) {
-    recovery = mapBlockStatement(node.recovery, meta);
-  } else {
-    recovery = b.blockStatement([]);
-  }
-
-  if (node.errorVariable) {
-    errorVar = mapLiteral({base: node.errorVariable}, meta);
-  } else {
-    errorVar = b.identifier('undefined');
+  } else if (!catchBlock) {
+    finalize = b.blockStatement([]);
   }
 
   return b.tryStatement(
     mapBlockStatement(node.attempt, meta),
-    b.catchClause(
-      errorVar,
-      null,
-      recovery
-    ),
+    catchBlock,
     finalize
   );
 }
