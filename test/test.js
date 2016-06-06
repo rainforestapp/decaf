@@ -11,7 +11,8 @@ function compile(source) {
 describe('Values', () => {
   it('strings', () => {
     expect(compile('"yoyoyo"')).toEqual('"yoyoyo";');
-    expect(compile(`"#{_.escape(text).replace(/\\n/g, '<br>')}<br>"`)).toEqual(`(_.escape(text).replace(/\\n/g, "<br>")) + "<br>";`);
+    expect(compile(`"#{_.escape(text).replace(/\\n/g, '<br>')}<br>"`))
+     .toEqual(`(_.escape(text).replace(/\\n/g, "<br>")) + "<br>";`);
     expect(compile(`'\\''`)).toEqual(`"'";`);
     expect(compile(`"\\""`)).toEqual(`"\\"";`);
     expect(compile(`"\\\\\\\\"`)).toEqual(`"\\\\";`);

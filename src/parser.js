@@ -342,10 +342,10 @@ function mapClassExpressions(expressions, meta) {
 }
 
 function disallowPrivateClassStatements(node) {
-  if (any(node.expressions, (expr) => {
-    return expr.constructor.name === 'Call' ||
-    (expr.constructor.name === 'Assign' && get(expr, 'variable.this') !== true);
-  })) {
+  if (any(node.expressions, expr => (
+    expr.constructor.name === 'Call' ||
+    (expr.constructor.name === 'Assign' && get(expr, 'variable.this') !== true)
+  ))) {
     throwError(node.locationData, 'Private Class statements are not allowed.');
   }
 }
@@ -840,12 +840,14 @@ function detectIllegalSuper(node, meta) {
 
   if (hasArgumentAssignmentsAndSuperCall ||
       hasSuperCallAfterThisAssignments) {
-    throwError(superCall.locationData, 'Illegal use of super() in constructor. super must be called before any this assignments');
+    throwError(
+      superCall.locationData,
+      'Illegal use of super() in constructor. super must be called before any this assignments');
   }
 }
 
 function throwError(locData, msg) {
-  throw new Error(`[${locData.first_line}:${locData.first_column}] - ${msg}`)
+  throw new Error(`[${locData.first_line}:${locData.first_column}] - ${msg}`);
 }
 
 function mapFunction(node, meta) {
