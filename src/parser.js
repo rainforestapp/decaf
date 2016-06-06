@@ -146,6 +146,11 @@ function mapOp(node, meta) {
     return fallback(node, meta);
   }
 
+  // if the cs pow operator is used, map it
+  if (operator === '**') {
+    return fallback(node, meta);
+  }
+
   // fall back to coffee-script conditional operator
   if (operator === '?') {
     return fallback(node, meta);
