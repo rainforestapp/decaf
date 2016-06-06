@@ -83,6 +83,18 @@ describe('multiline strings', () => {
   });
 });
 
+describe('** operator', () => {
+  it('compiles to Math.pow', () => {
+    const example = `4 ** 5`;
+    expect(compile(example)).toEqual(`Math.pow(4, 5);`);
+  });
+
+  it('compiles newsted pow operators to Math.pow', () => {
+    const example = `4 ** 5 ** 123`;
+    expect(compile(example)).toEqual(`Math.pow(4, Math.pow(5, 123));`);
+  });
+});
+
 describe('throw statements', () => {
   it('throw "error" if success is false', () => {
     const example = 'throw "error" if success is false';
