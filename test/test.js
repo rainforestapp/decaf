@@ -1364,6 +1364,63 @@ if (params.order) {
 
     expect(compile(example)).toEqual(expected);
   });
+
+  it('create-assigns in one line if all vars are undeclared', () => {
+    const example =
+`[a, b] = [1, 2]
+setTimeout ->
+  a = 4
+  b = 5`;
+
+    const expected =
+`var [a, b] = [1, 2];
+
+setTimeout(function() {
+  a = 4;
+  return b = 5;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('creates undeclared vars and assigns separately if some vars are already in scope', () => {
+    const example =
+`a = 1;
+[a, b] = [1, 2]
+
+setTimeout ->
+  a = 4
+  b = 5
+`;
+
+    const expected =
+`var b;
+var a = 1;
+[a, b] = [1, 2];
+
+setTimeout(function() {
+  a = 4;
+  return b = 5;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('allows linters to report undeclared complex objects', () => {
+    const example =
+`[a, b.c] = [1, 2]
+setTimeout ->
+  a = 4
+  b.c = 5`;
+
+    const expected =
+`var a;
+[a, b.c] = [1, 2];
+
+setTimeout(function() {
+  a = 4;
+  return b.c = 5;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('conditional statements', () => {
