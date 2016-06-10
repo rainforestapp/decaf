@@ -393,9 +393,18 @@ function mapClassBody(node, meta) {
     }
 
     // bind all the bound methods to the class
-    constructor.value.body.body = constructor.value.body.body.concat(boundMethods.map(function (identifier) {
+    var body = constructor.value.body.body;
+    var hasSuper = !!(0, _findWhere2.default)(body, {
+      expression: {
+        callee: {
+          name: 'super'
+        }
+      }
+    });
+
+    body.splice.apply(body, [hasSuper ? 1 : 0, 0].concat(_toConsumableArray(boundMethods.map(function (identifier) {
       return _astTypes.builders.expressionStatement(_astTypes.builders.assignmentExpression('=', _astTypes.builders.memberExpression(_astTypes.builders.thisExpression(), identifier), _astTypes.builders.callExpression(_astTypes.builders.memberExpression(_astTypes.builders.memberExpression(_astTypes.builders.thisExpression(), identifier), _astTypes.builders.identifier('bind')), [_astTypes.builders.thisExpression()])));
-    }));
+    }))));
   }
 
   return _astTypes.builders.classBody(classElements);
@@ -848,38 +857,21 @@ function insertSuperCalls(ast) {
   return ast;
 }
 
-function isArrayAssignmentWithThisReference(path) {
-  var assignedPath = path.value && path.value.left;
-  var isArrayAssignment = assignedPath && assignedPath.type === 'ArrayExpression';
-  var hasMemberExpressions = isArrayAssignment && (0, _jscodeshift2.default)(assignedPath).find('MemberExpression').size() > 0;
-
-  return isArrayAssignment && hasMemberExpressions;
-}
-
-function insertArrayAssignmentVarDeclarations(assignmentPath) {
-  var identifiers = (0, _jscodeshift2.default)(assignmentPath.value.left).find(_jscodeshift2.default.Identifier).filter(function (path) {
-    return path.parentPath.name === 'elements';
-  }).paths().map(function (path) {
-    return path.value.name;
+function getDestructuringAssignmentInfo(path) {
+  var assignmentPath = path.value.left;
+  var targetIds = (0, _jscodeshift2.default)(assignmentPath).find(_jscodeshift2.default.Identifier).filter(function (_path) {
+    return _path.parentPath.name === 'elements';
+  }).paths().map(function (idPath) {
+    return idPath.value.name;
   });
 
-  if (identifiers.length > 0) {
-    identifiers.forEach(function (id) {
-      return assignmentPath.scope.injectTemporary(_jscodeshift2.default.identifier(id), null);
-    });
-  }
-}
-
-function getAssignmentIdentifiers(path) {
-  var elements = path.value && path.value.left && path.value.left.elements;
-  if (!elements) {
-    return null;
-  }
-
-  var inScopeIds = elements.filter(function (element) {
-    return element.type !== _jscodeshift2.default.MemberExpression.name;
-  });
-  return new Set(inScopeIds);
+  return {
+    targetIds: targetIds,
+    undeclaredIds: targetIds.filter(function (id) {
+      return !path.scope.lookup(id);
+    }),
+    hasMemberAssignments: (0, _jscodeshift2.default)(assignmentPath).find('MemberExpression').size() > 0
+  };
 }
 
 function findNodeParent(node, matcher) {
@@ -902,6 +894,29 @@ function insertBreakStatements(ast) {
   return ast;
 }
 
+function insertDestructuringAssignmentVars(path) {
+  var _getDestructuringAssi = getDestructuringAssignmentInfo(path);
+
+  var hasMemberAssignments = _getDestructuringAssi.hasMemberAssignments;
+  var targetIds = _getDestructuringAssi.targetIds;
+  var undeclaredIds = _getDestructuringAssi.undeclaredIds;
+  var _path$value = path.value;
+  var left = _path$value.left;
+  var right = _path$value.right;
+
+
+  if (hasMemberAssignments || undeclaredIds.length !== targetIds.length) {
+    undeclaredIds.forEach(function (id) {
+      return path.scope.injectTemporary(_jscodeshift2.default.identifier(id), null);
+    });
+  } else {
+    (0, _jscodeshift2.default)(path).replaceWith(function () {
+      return _astTypes.builders.variableDeclaration('var', [_astTypes.builders.variableDeclarator(_jscodeshift2.default.arrayPattern(left.elements), right)]);
+    });
+  }
+  path.scope.scan(true);
+}
+
 function insertVariableDeclarations(ast) {
   (0, _jscodeshift2.default)(ast)
   // first we're going to find all assignments in our code
@@ -916,28 +931,28 @@ function insertVariableDeclarations(ast) {
     if (path.parent.value.type.match(/^(ArrowFunctionExpression|Function(Expression|Statement))$/)) {
       return;
     }
+
+    if (_jscodeshift2.default.ArrayExpression.check(path.value.left)) {
+      insertDestructuringAssignmentVars(path);
+      return;
+    }
+
     var needle = path.value.left.name;
+
     if (!path.scope.lookup(needle)) {
       var blockNode = findNodeParent(path, function (node) {
         return (0, _get2.default)(node, 'value.type') === 'BlockStatement';
       });
-      if (path.parent && path.parent.value.type === 'ExpressionStatement' && isArrayAssignmentWithThisReference(path)) {
-        insertArrayAssignmentVarDeclarations(path);
-      } else if (path.parent && (0, _get2.default)(path, 'parent.parent.value.type') !== 'SwitchCase' && path.parent.value.type === 'ExpressionStatement' && (0, _get2.default)(blockNode, 'parent.value.type') !== 'IfStatement') {
+      if (path.parent && (0, _get2.default)(path, 'parent.parent.value.type') !== 'SwitchCase' && path.parent.value.type === 'ExpressionStatement' && (0, _get2.default)(blockNode, 'parent.value.type') !== 'IfStatement') {
         (0, _jscodeshift2.default)(path).replaceWith(function (_path) {
           return _astTypes.builders.variableDeclaration('var', [_astTypes.builders.variableDeclarator(_path.value.left, _path.value.right)]);
         });
-        path.scope.scan(true);
       } else {
-        var identifiers = getAssignmentIdentifiers(path) || [path.value.left];
-        identifiers.forEach(function (id) {
-          return path.scope.injectTemporary(id);
-        });
-        path.scope.scan(true);
+        path.scope.injectTemporary(path.value.left);
       }
+      path.scope.scan(true);
     }
   });
-
   return ast;
 }
 
