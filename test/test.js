@@ -974,6 +974,52 @@ describe('ClassExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('binds fat arrow methods before the constructor body', () => {
+    const example =
+`class A
+  constructor: ->
+    super
+    document.addEventListener("event", this.b)
+
+  b: => bom + 123
+`;
+    const expected =
+`class A {
+  constructor() {
+    super(...arguments);
+    this.b = this.b.bind(this);
+    document.addEventListener("event", this.b);
+  }
+
+  b() {
+    return bom + 123;
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('binds fat arrow methods before the constructor body without super', () => {
+    const example =
+`class A
+  constructor: ->
+    document.addEventListener("event", this.b)
+
+  b: => bom + 123
+`;
+    const expected =
+`class A {
+  constructor() {
+    this.b = this.b.bind(this);
+    document.addEventListener("event", this.b);
+  }
+
+  b() {
+    return bom + 123;
+  }
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('extends a class with the extend keyword', () => {
     const example =
 `class A extends B
@@ -1362,6 +1408,63 @@ if (params.order) {
   [this.currentField, direction, foo] = params.order.split(" ");
 }`;
 
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('create-assigns in one line if all vars are undeclared', () => {
+    const example =
+`[a, b] = [1, 2]
+setTimeout ->
+  a = 4
+  b = 5`;
+
+    const expected =
+`var [a, b] = [1, 2];
+
+setTimeout(function() {
+  a = 4;
+  return b = 5;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('creates undeclared vars and assigns separately if some vars are already in scope', () => {
+    const example =
+`a = 1;
+[a, b] = [1, 2]
+
+setTimeout ->
+  a = 4
+  b = 5
+`;
+
+    const expected =
+`var b;
+var a = 1;
+[a, b] = [1, 2];
+
+setTimeout(function() {
+  a = 4;
+  return b = 5;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('allows linters to report undeclared complex objects', () => {
+    const example =
+`[a, b.c] = [1, 2]
+setTimeout ->
+  a = 4
+  b.c = 5`;
+
+    const expected =
+`var a;
+[a, b.c] = [1, 2];
+
+setTimeout(function() {
+  a = 4;
+  return b.c = 5;
+});`;
     expect(compile(example)).toEqual(expected);
   });
 });
