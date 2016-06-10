@@ -968,36 +968,19 @@ function insertSuperCalls(ast) {
   return ast;
 }
 
-function isArrayAssignmentWithThisReference(path) {
-  const assignedPath = path.value && path.value.left;
-  const isArrayAssignment = assignedPath && assignedPath.type === 'ArrayExpression';
-  const hasMemberExpressions = isArrayAssignment && jsc(assignedPath).find('MemberExpression').size() > 0;
-
-  return isArrayAssignment && hasMemberExpressions;
-}
-
-function insertArrayAssignmentVarDeclarations(assignmentPath) {
-  const identifiers = jsc(assignmentPath.value.left)
+function getDestructuringAssignmentInfo(path) {
+  const assignmentPath = path.value.left;
+  const targetIds = jsc(assignmentPath)
     .find(jsc.Identifier)
-    .filter(path => path.parentPath.name === 'elements')
+    .filter(_path => _path.parentPath.name === 'elements')
     .paths()
-    .map(path => path.value.name);
+    .map(idPath => idPath.value.name);
 
-  if (identifiers.length > 0) {
-    identifiers.forEach(id =>
-      assignmentPath.scope.injectTemporary(jsc.identifier(id), null)
-    );
-  }
-}
-
-function getAssignmentIdentifiers(path) {
-  const elements = path.value && path.value.left && path.value.left.elements;
-  if (!elements) {
-    return null;
-  }
-
-  const inScopeIds = elements.filter(element => element.type !== jsc.MemberExpression.name);
-  return new Set(inScopeIds);
+  return {
+    targetIds,
+    undeclaredIds: targetIds.filter(id => !path.scope.lookup(id)),
+    hasMemberAssignments: jsc(assignmentPath).find('MemberExpression').size() > 0,
+  };
 }
 
 function findNodeParent(node, matcher) {
@@ -1019,6 +1002,27 @@ function insertBreakStatements(ast) {
   return ast;
 }
 
+function insertDestructuringAssignmentVars(path) {
+  const {hasMemberAssignments, targetIds, undeclaredIds} = getDestructuringAssignmentInfo(path);
+  const {left, right} = path.value;
+
+  if (hasMemberAssignments || undeclaredIds.length !== targetIds.length) {
+    undeclaredIds.forEach(id =>
+      path.scope.injectTemporary(jsc.identifier(id), null)
+    );
+  } else {
+    jsc(path).replaceWith(() =>
+      b.variableDeclaration(
+        'var',
+        [b.variableDeclarator(
+          jsc.arrayPattern(left.elements), right
+        )]
+      )
+    );
+  }
+  path.scope.scan(true);
+}
+
 function insertVariableDeclarations(ast) {
   jsc(ast)
   // first we're going to find all assignments in our code
@@ -1034,12 +1038,17 @@ function insertVariableDeclarations(ast) {
     if (path.parent.value.type.match(/^(ArrowFunctionExpression|Function(Expression|Statement))$/)) {
       return;
     }
+
+    if (jsc.ArrayExpression.check(path.value.left)) {
+      insertDestructuringAssignmentVars(path);
+      return;
+    }
+
     const needle = path.value.left.name;
+
     if (!path.scope.lookup(needle)) {
       const blockNode = findNodeParent(path, node => get(node, 'value.type') === 'BlockStatement');
-      if (path.parent && path.parent.value.type === 'ExpressionStatement' && isArrayAssignmentWithThisReference(path)) {
-        insertArrayAssignmentVarDeclarations(path);
-      } else if (path.parent &&
+      if (path.parent &&
           get(path, 'parent.parent.value.type') !== 'SwitchCase' &&
           path.parent.value.type === 'ExpressionStatement' &&
           get(blockNode, 'parent.value.type') !== 'IfStatement') {
@@ -1052,17 +1061,12 @@ function insertVariableDeclarations(ast) {
             )]
           )
         );
-        path.scope.scan(true);
       } else {
-        const identifiers = getAssignmentIdentifiers(path) || [path.value.left];
-        identifiers.forEach(id =>
-          path.scope.injectTemporary(id)
-        );
-        path.scope.scan(true);
+        path.scope.injectTemporary(path.value.left);
       }
+      path.scope.scan(true);
     }
   });
-
   return ast;
 }
 
