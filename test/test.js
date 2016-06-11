@@ -813,6 +813,42 @@ class A extends B {
   });
 });
 
+describe('existential assignment', () => {
+  it('handles soaked variable', () => {
+    const example = `foo?.bar = "buzz" || ""`;
+    const expected = `(foo != null ? foo.bar = "buzz" || "" : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles soaked variable property', () => {
+    const example = `foo.bar?.car = "qux"`;
+    const expected =
+`var ref;
+((ref = foo.bar) != null ? ref.car = "qux" : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles soaked method call', () => {
+    const example = `foo.bar()?.car = "qux"`;
+    const expected =
+`var ref;
+((ref = foo.bar()) != null ? ref.car = "qux" : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles return-assignments', () => {
+    const example =
+`bam = ->
+  foo?.bar = "buzz"`;
+
+    const expected =
+`var bam = function() {
+  return (foo != null ? foo.bar = "buzz" : void 0);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('FunctionExpression', () => {
   it('fn = (a,b) -> console.log a, b', () => {
     const example = `fn = (a,b) -> console.log a, b`;
