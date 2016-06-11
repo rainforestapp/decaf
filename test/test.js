@@ -847,6 +847,14 @@ describe('existential assignment', () => {
 };`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('handles increment-assign', () => {
+    const example = `foo.bar?.car += qux`
+    const expected =
+`var ref;
+((ref = foo.bar) != null ? ref.car += qux : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('FunctionExpression', () => {

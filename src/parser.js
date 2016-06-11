@@ -1479,10 +1479,11 @@ function mapExistentialAssignmentExpression(node, meta) {
   const condition = mapExistentialExpression(unsoaked.condition, meta);
   const assignTarget = mapExpression(unsoaked.body, meta);
   const assignValue = mapExpression(node.value, meta);
+  const operator = node.context || '=';
 
   return b.conditionalExpression(
     condition,
-    b.assignmentExpression('=', assignTarget, assignValue),
+    b.assignmentExpression(operator, assignTarget, assignValue),
     b.unaryExpression('void', b.literal(0))
   );
 }
