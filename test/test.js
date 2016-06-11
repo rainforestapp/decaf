@@ -881,6 +881,24 @@ describe('FunctionExpression', () => {
     expect(compile(example)).toEqual(expected);
   });
 
+  it('({@a, @b, c}, @d) => c', () => {
+    const example = '({@a, @b, c}, @d) => @a + c';
+    const expected =
+`(
+  {
+    a,
+    b,
+    c
+  },
+  d) => {
+  this.a = a;
+  this.b = b;
+  this.d = d;
+  return this.a + c;
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('turns empty object or array parameter into normal parameter, prevents naming collisions', () => {
     const example = 'fn = ({}, bo, [], ba) ->';
     const expected = `var fn = function(arg, bo, arg1, ba) {};`;

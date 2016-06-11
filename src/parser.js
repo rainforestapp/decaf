@@ -18,6 +18,11 @@ const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
 
+function isThisMemberExpression(node) {
+  return node.type === 'MemberExpression' &&
+      (node.object.type === 'ThisExpression' || node.object.name === 'this');
+}
+
 function mapBoolean(node) {
   if (node.base.val === 'true') {
     return b.literal(true);
@@ -76,7 +81,9 @@ function mapLiteral(node) {
 
 function mapKey(node) {
   const type = node.base.constructor.name;
-  if (type === 'Literal') {
+  if (node.properties && node.properties.length) {
+    return b.identifier(node.properties[0].name.value);
+  } else if (type === 'Literal') {
     return b.identifier(node.base.value);
   }
 }
@@ -713,20 +720,32 @@ function mapInArrayExpression(node, meta) {
 }
 
 function extractAssignStatementsByArguments(nodes) {
-  return nodes
-    .map(node => node.type === 'AssignmentExpression' ? node.left : node)
-    .map(node => node.type === 'RestElement' ? node.argument : node)
-    .filter(node => node.type === 'MemberExpression' &&
-        (node.object.type === 'ThisExpression' || node.object.name === 'this'))
-    .map(node =>
-      b.expressionStatement(
-        b.assignmentExpression(
-          '=',
-          node,
-          node.property
-        )
-      )
+  function mapPatternThisAssignmentsToMemberExpressions(node) {
+    return node.properties.filter(
+      assignment => assignment.value.name === 'this'
+    ).map(assignment =>
+      b.memberExpression(b.thisExpression(), b.identifier(assignment.key.name))
     );
+  }
+
+  return flatten(
+    nodes
+      .map(node => node.type === 'AssignmentExpression' ? node.left : node)
+      .map(node => node.type === 'RestElement' ? node.argument : node)
+      .map(node => node.type === 'ObjectPattern' ?
+        mapPatternThisAssignmentsToMemberExpressions(node) : node
+      )
+  )
+  .filter(isThisMemberExpression)
+  .map(node =>
+    b.expressionStatement(
+      b.assignmentExpression(
+        '=',
+        node,
+        node.property
+      )
+    )
+  );
 }
 
 function normalizeArgument(node) {
@@ -738,8 +757,7 @@ function normalizeArgument(node) {
       node.right
     );
   }
-  if (node.type === 'MemberExpression' &&
-     (node.object.type === 'ThisExpression' || node.object.name === 'this')) {
+  if (isThisMemberExpression(node)) {
     return {type: 'Identifier', name: node.property.name};
   }
   return node;
