@@ -229,8 +229,7 @@ function mapCall(node, meta) {
   const {superMethodName} = meta;
 
   // fallback early if variable name contains an existential operator
-  if (node.variable && (findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1 ||
-     (node.variable.properties && findIndex(node.variable.properties, {soak: true}) > -1))) {
+  if (isSoaked(node)) {
     return fallback(node, meta);
   }
 
@@ -604,6 +603,13 @@ function mapTryCatchBlock(node, meta) {
 
 function mapReturnStatement(node, meta) {
   return b.returnStatement(node.expression ? mapExpression(node.expression, meta) : null);
+}
+
+function isSoaked(node) {
+  return (
+    (node.variable && findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1) ||
+    (node.variable && node.variable.properties && findIndex(node.variable.properties, {soak: true}) > -1)
+  );
 }
 
 function mapStatement(node, meta) {
@@ -1486,7 +1492,25 @@ function mapParamToAssignment(node) {
   return assignment;
 }
 
+function mapExistentialAssignmentExpression(node, meta) {
+  const unsoaked = node.variable.unfoldSoak(meta);
+  const condition = mapExistentialExpression(unsoaked.condition, meta);
+  const assignTarget = mapExpression(unsoaked.body, meta);
+  const assignValue = mapExpression(node.value, meta);
+  const operator = node.context || '=';
+
+  return b.conditionalExpression(
+    condition,
+    b.assignmentExpression(operator, assignTarget, assignValue),
+    b.unaryExpression('void', b.literal(0))
+  );
+}
+
 function mapAssignmentExpression(node, meta) {
+  if (isSoaked(node)) {
+    return mapExistentialAssignmentExpression(node, meta);
+  }
+
   let variable;
   const props = get(node, 'variable.base.properties') || [];
   if (any(props, {this: true})) {
