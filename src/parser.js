@@ -811,6 +811,8 @@ function lastReturnStatement(nodeList = []) {
       return nodeList;
     } else if (nodeList[lastIndex].type === 'IfStatement') {
       nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
+    } else if (nodeList[lastIndex].type === 'TryStatement') {
+      nodeList[lastIndex] = addReturnStatementsToTryCatch(nodeList[lastIndex]);
     } else {
       nodeList[lastIndex] =
         b.returnStatement(
@@ -842,11 +844,19 @@ function addReturnStatementToIfBlocks(node) {
 
 function addReturnStatementToBlock(node) {
   const hasReturnStatement = findIndex(node.body, {type: 'ReturnStatement'}) === node.body.length - 1;
-
-  if (hasReturnStatement) {
-    return node;
+  if (!hasReturnStatement) {
+    node.body = lastReturnStatement(node.body);
   }
-  node.body = lastReturnStatement(node.body);
+  return node;
+}
+
+
+function addReturnStatementsToTryCatch(node) {
+  node.block = addReturnStatementToBlock(node.block);
+  if (node.handler) {
+    node.handler.body = addReturnStatementToBlock(node.handler.body);
+  }
+
   return node;
 }
 
