@@ -107,12 +107,8 @@ function mapRange(node, meta) {
 }
 
 function mapSlice(node, meta) {
-  const {range} = node;
-  const args = [range.from ? mapExpression(range.from, meta) : b.literal(0)];
-  if (range.to) {
-    args.push(mapExpression(range.to, meta));
-  }
-  return b.callExpression(b.identifier('slice'), args);
+  const jsString = node.compile(meta).substring(1);
+  return recast.parse(jsString).program.body[0].expression;
 }
 
 function mapValue(node, meta) {
