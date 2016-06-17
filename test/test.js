@@ -1793,6 +1793,44 @@ var x = (() => {
 })();`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('inserts try return statement when last function statement', () => {
+    const example =
+`x = () ->
+  try
+    foo()
+  finally
+    bar()`;
+
+    const expected =
+`var x = function() {
+  try {
+    return foo();
+  } finally {
+    bar();
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('inserts catch return statement when last function statement', () => {
+    const example =
+`x = () ->
+  try
+    foo()
+  catch e
+    bar()`;
+
+    const expected =
+`var x = function() {
+  try {
+    return foo();
+  } catch (e) {
+    return bar();
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('switch blocks', () => {
