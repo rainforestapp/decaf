@@ -18,6 +18,11 @@ const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
 
+function isThisMemberExpression(node) {
+  return node.type === 'MemberExpression' &&
+      (node.object.type === 'ThisExpression' || node.object.name === 'this');
+}
+
 function mapBoolean(node) {
   if (node.base.val === 'true') {
     return b.literal(true);
@@ -76,7 +81,9 @@ function mapLiteral(node) {
 
 function mapKey(node) {
   const type = node.base.constructor.name;
-  if (type === 'Literal') {
+  if (node.properties && node.properties.length) {
+    return b.identifier(node.properties[0].name.value);
+  } else if (type === 'Literal') {
     return b.identifier(node.base.value);
   }
 }
@@ -100,12 +107,8 @@ function mapRange(node, meta) {
 }
 
 function mapSlice(node, meta) {
-  const {range} = node;
-  const args = [range.from ? mapExpression(range.from, meta) : b.literal(0)];
-  if (range.to) {
-    args.push(mapExpression(range.to, meta));
-  }
-  return b.callExpression(b.identifier('slice'), args);
+  const jsString = node.compile(meta).substring(1);
+  return recast.parse(jsString).program.body[0].expression;
 }
 
 function mapValue(node, meta) {
@@ -222,8 +225,7 @@ function mapCall(node, meta) {
   const {superMethodName} = meta;
 
   // fallback early if variable name contains an existential operator
-  if (node.variable && (findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1 ||
-     (node.variable.properties && findIndex(node.variable.properties, {soak: true}) > -1))) {
+  if (isSoaked(node)) {
     return fallback(node, meta);
   }
 
@@ -599,6 +601,13 @@ function mapReturnStatement(node, meta) {
   return b.returnStatement(node.expression ? mapExpression(node.expression, meta) : null);
 }
 
+function isSoaked(node) {
+  return (
+    (node.variable && findIndex(get(node, 'variable.base.properties'), {soak: true}) > -1) ||
+    (node.variable && node.variable.properties && findIndex(node.variable.properties, {soak: true}) > -1)
+  );
+}
+
 function mapStatement(node, meta) {
   const type = node.constructor.name;
 
@@ -703,30 +712,48 @@ function mapBlockStatement(node, meta, factory = b.blockStatement) {
 }
 
 function mapInArrayExpression(node, meta) {
-  return b.memberExpression(
+  let test = b.memberExpression(
     mapExpression(node.array, meta),
     b.callExpression(
       b.identifier('includes'),
       [mapExpression(node.object, meta)]
     )
   );
+
+  if (node.negated) {
+    test = b.unaryExpression('!', test);
+  }
+
+  return test;
 }
 
 function extractAssignStatementsByArguments(nodes) {
-  return nodes
-    .map(node => node.type === 'AssignmentExpression' ? node.left : node)
-    .map(node => node.type === 'RestElement' ? node.argument : node)
-    .filter(node => node.type === 'MemberExpression' &&
-        (node.object.type === 'ThisExpression' || node.object.name === 'this'))
-    .map(node =>
-      b.expressionStatement(
-        b.assignmentExpression(
-          '=',
-          node,
-          node.property
-        )
-      )
+  function mapPatternThisAssignmentsToMemberExpressions(node) {
+    return node.properties.filter(
+      assignment => assignment.value.name === 'this'
+    ).map(assignment =>
+      b.memberExpression(b.thisExpression(), b.identifier(assignment.key.name))
     );
+  }
+
+  return flatten(
+    nodes
+      .map(node => node.type === 'AssignmentExpression' ? node.left : node)
+      .map(node => node.type === 'RestElement' ? node.argument : node)
+      .map(node => node.type === 'ObjectPattern' ?
+        mapPatternThisAssignmentsToMemberExpressions(node) : node
+      )
+  )
+  .filter(isThisMemberExpression)
+  .map(node =>
+    b.expressionStatement(
+      b.assignmentExpression(
+        '=',
+        node,
+        node.property
+      )
+    )
+  );
 }
 
 function normalizeArgument(node) {
@@ -738,8 +765,7 @@ function normalizeArgument(node) {
       node.right
     );
   }
-  if (node.type === 'MemberExpression' &&
-     (node.object.type === 'ThisExpression' || node.object.name === 'this')) {
+  if (isThisMemberExpression(node)) {
     return {type: 'Identifier', name: node.property.name};
   }
   return node;
@@ -787,6 +813,8 @@ function lastReturnStatement(nodeList = []) {
       return nodeList;
     } else if (nodeList[lastIndex].type === 'IfStatement') {
       nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
+    } else if (nodeList[lastIndex].type === 'TryStatement') {
+      nodeList[lastIndex] = addReturnStatementsToTryCatch(nodeList[lastIndex]);
     } else {
       nodeList[lastIndex] =
         b.returnStatement(
@@ -818,11 +846,19 @@ function addReturnStatementToIfBlocks(node) {
 
 function addReturnStatementToBlock(node) {
   const hasReturnStatement = findIndex(node.body, {type: 'ReturnStatement'}) === node.body.length - 1;
-
-  if (hasReturnStatement) {
-    return node;
+  if (!hasReturnStatement) {
+    node.body = lastReturnStatement(node.body);
   }
-  node.body = lastReturnStatement(node.body);
+  return node;
+}
+
+
+function addReturnStatementsToTryCatch(node) {
+  node.block = addReturnStatementToBlock(node.block);
+  if (node.handler) {
+    node.handler.body = addReturnStatementToBlock(node.handler.body);
+  }
+
   return node;
 }
 
@@ -918,6 +954,10 @@ function mapFunction(node, meta) {
     );
     setupStatements = tailStatements.concat(setupStatements);
   }
+
+  // since we are going to be using an arrow function, we can throw away the special
+  // context that CoffeeScript created for us
+  meta.scope.method.context = 'this';
 
   let block = mapBlockStatement(node.body, meta);
 
@@ -1118,18 +1158,13 @@ function mapSwitchStatement(node, meta) {
   );
 }
 
-function mapForGuard(guardNode, blockStatement, meta) {
+function mapForGuard(guardNode, meta) {
   const isExistential = guardNode.constructor.name === 'Existence';
   const guardClause = isExistential ?
     mapExistentialExpression(guardNode, meta) :
     mapOp(guardNode.expression || guardNode, meta);
 
-  return b.blockStatement([
-    b.ifStatement(
-      guardClause,
-      blockStatement
-    ),
-  ]);
+  return guardClause;
 }
 
 function mapForStatement(node, meta) {
@@ -1139,7 +1174,12 @@ function mapForStatement(node, meta) {
   // is a conditional expression attached to the for
   // loop
   if (node.guard) {
-    blockStatement = mapForGuard(node.guard, blockStatement, meta);
+    blockStatement = b.blockStatement([
+      b.ifStatement(
+        mapForGuard(node.guard, meta),
+        blockStatement
+      ),
+    ]);
   }
 
   if (node.object === false) {
@@ -1244,6 +1284,26 @@ function mapLeftHandForExpression(node, meta) {
   return mapExpression(node.source, meta);
 }
 
+function mapForGuardToFilter(guardNode, target, args, meta) {
+  if (!guardNode) {
+    return null;
+  }
+
+  const guardClause = mapForGuard(guardNode, meta);
+  return b.callExpression(
+    b.memberExpression(
+      target,
+      b.identifier('filter')
+    ),
+    [
+      b.arrowFunctionExpression(
+        args,
+        guardClause
+      ),
+    ]
+  );
+}
+
 function mapForExpression(node, meta) {
   const leftHand = mapLeftHandForExpression(node, meta);
   const args = [];
@@ -1274,15 +1334,25 @@ function mapForExpression(node, meta) {
     }
   }
 
+  const blockStatement = mapBlockStatement(node.body, meta);
+  const filterCall = mapForGuardToFilter(node.guard, target, args, meta);
+  if (filterCall) {
+    const hasNoLoopTransformLogic = (
+      blockStatement.body.length === 1 &&
+      n.Identifier.check(blockStatement.body[0].expression)
+    );
+
+    if (hasNoLoopTransformLogic) {
+      return filterCall;
+    }
+  }
+
   return b.callExpression(
-    b.memberExpression(
-      target,
-      b.identifier('map')
-    ),
+    b.memberExpression(filterCall || target, b.identifier('map')),
     [
       b.arrowFunctionExpression(
         args,
-        addReturnStatementToBlock(mapBlockStatement(node.body, meta))
+        addReturnStatementToBlock(blockStatement)
       ),
     ]
   );
@@ -1468,7 +1538,25 @@ function mapParamToAssignment(node) {
   return assignment;
 }
 
+function mapExistentialAssignmentExpression(node, meta) {
+  const unsoaked = node.variable.unfoldSoak(meta);
+  const condition = mapExistentialExpression(unsoaked.condition, meta);
+  const assignTarget = mapExpression(unsoaked.body, meta);
+  const assignValue = mapExpression(node.value, meta);
+  const operator = node.context || '=';
+
+  return b.conditionalExpression(
+    condition,
+    b.assignmentExpression(operator, assignTarget, assignValue),
+    b.unaryExpression('void', b.literal(0))
+  );
+}
+
 function mapAssignmentExpression(node, meta) {
+  if (isSoaked(node)) {
+    return mapExistentialAssignmentExpression(node, meta);
+  }
+
   let variable;
   const props = get(node, 'variable.base.properties') || [];
   if (any(props, {this: true})) {

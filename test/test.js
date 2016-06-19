@@ -318,6 +318,15 @@ var yo = typeof a !== "undefined" && a !== null ? \
 ((ref = a.b) != null ? (typeof ref.c === "function" ? ref.c() : void 0) : void 0) : void 0;`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('doSomething (foo) => @bar.baz?.qux', () => {
+    const example = 'doSomething (foo) => @bar?';
+    const expected =
+`doSomething(foo => {
+  return this.bar != null;
+});`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('Boolean Expression', () => {
@@ -813,6 +822,50 @@ class A extends B {
   });
 });
 
+describe('existential assignment', () => {
+  it('handles soaked variable', () => {
+    const example = `foo?.bar = "buzz" || ""`;
+    const expected = `(foo != null ? foo.bar = "buzz" || "" : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles soaked variable property', () => {
+    const example = `foo.bar?.car = "qux"`;
+    const expected =
+`var ref;
+((ref = foo.bar) != null ? ref.car = "qux" : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles soaked method call', () => {
+    const example = `foo.bar()?.car = "qux"`;
+    const expected =
+`var ref;
+((ref = foo.bar()) != null ? ref.car = "qux" : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles return-assignments', () => {
+    const example =
+`bam = ->
+  foo?.bar = "buzz"`;
+
+    const expected =
+`var bam = function() {
+  return (foo != null ? foo.bar = "buzz" : void 0);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('handles increment-assign', () => {
+    const example = `foo.bar?.car += qux`
+    const expected =
+`var ref;
+((ref = foo.bar) != null ? ref.car += qux : void 0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('FunctionExpression', () => {
   it('fn = (a,b) -> console.log a, b', () => {
     const example = `fn = (a,b) -> console.log a, b`;
@@ -877,6 +930,24 @@ describe('FunctionExpression', () => {
 `var fn = function(a, b) {
   this.a = a;
   return console.log(a, b);
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('({@a, @b, c}, @d) => c', () => {
+    const example = '({@a, @b, c}, @d) => @a + c';
+    const expected =
+`(
+  {
+    a,
+    b,
+    c
+  },
+  d) => {
+  this.a = a;
+  this.b = b;
+  this.d = d;
+  return this.a + c;
 };`;
     expect(compile(example)).toEqual(expected);
   });
@@ -1565,6 +1636,37 @@ else
     expect(compile(example)).toEqual(expected);
   });
 
+  it(`maps unless includes statements`, () => {
+    const example =
+`unless foo in list
+  bar();
+`;
+
+    const expected =
+`if (!list.includes(foo)) {
+  bar();
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it(`maps not includes statements`, () => {
+    const example =
+`x = ->
+  return if foo not in ["a", "b", "c"]
+  qux()
+`;
+
+    const expected =
+`var x = function() {
+  if (!["a", "b", "c"].includes(foo)) {
+    return;
+  }
+
+  return qux();
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('avoids multiple declarations of the same variable', () => {
     const example =
 `switch word
@@ -1729,6 +1831,44 @@ var x = (() => {
     return a + " boo";
   } finally {}
 })();`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('inserts try return statement when last function statement', () => {
+    const example =
+`x = () ->
+  try
+    foo()
+  finally
+    bar()`;
+
+    const expected =
+`var x = function() {
+  try {
+    return foo();
+  } finally {
+    bar();
+  }
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('inserts catch return statement when last function statement', () => {
+    const example =
+`x = () ->
+  try
+    foo()
+  catch e
+    bar()`;
+
+    const expected =
+`var x = function() {
+  try {
+    return foo();
+  } catch (e) {
+    return bar();
+  }
+};`;
     expect(compile(example)).toEqual(expected);
   });
 });
@@ -2155,6 +2295,22 @@ for (var value of values) {
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('assigns conditional loop result using array filter', () => {
+    const example = 'results = (item for item in items when item.code[0..1] == expected)';
+    const expected =
+`var results = (items.filter(item => item.code.slice(0, 2) === expected));`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('transform-and-assigns conditional loop result using array filter-and-map', () => {
+    const example = 'results = (item.name for item in items when item == expected)';
+    const expected =
+`var results = (items.filter(item => item === expected).map(item => {
+  return item.name;
+}));`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('ranges', () => {
@@ -2312,19 +2468,19 @@ describe('slices', () => {
 
   it('bam[1..10]', () => {
     const example = `bam[1..10]`;
-    const expected = `bam.slice(1, 10);`;
+    const expected = `bam.slice(1, 11);`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('bam[1..10.5]', () => {
     const example = `bam[1..10.5]`;
-    const expected = `bam.slice(1, 10.5);`;
+    const expected = `bam.slice(1, +10.5 + 1 || 9e9);`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('bam[a()..b()]', () => {
     const example = `bam[a()..b()]`;
-    const expected = `bam.slice(a(), b());`;
+    const expected = `bam.slice(a(), +b() + 1 || 9e9);`;
     expect(compile(example)).toEqual(expected);
   });
 
@@ -2336,13 +2492,31 @@ describe('slices', () => {
 
   it('bam[..1]', () => {
     const example = `bam[..1]`;
-    const expected = `bam.slice(0, 1);`;
+    const expected = `bam.slice(0, 2);`;
     expect(compile(example)).toEqual(expected);
   });
 
   it('bam[..]', () => {
     const example = `bam[..]`;
     const expected = `bam.slice(0);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[foo..-1]', () => {
+    const example = `bam[foo..-1]`;
+    const expected = `bam.slice(foo);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[foo..-2]', () => {
+    const example = `bam[foo..-2]`;
+    const expected = `bam.slice(foo, -1);`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('bam[-2..]', () => {
+    const example = `bam[-2..]`;
+    const expected = `bam.slice(-2);`;
     expect(compile(example)).toEqual(expected);
   });
 });

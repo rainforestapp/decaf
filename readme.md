@@ -1,16 +1,16 @@
 # Decaf JS
 
-[![Build Status](https://travis-ci.org/juliankrispel/decaf.svg)](https://travis-ci.org/juliankrispel/decaf)
+[![Build Status](https://travis-ci.org/rainforestapp/decaf.svg)](https://travis-ci.org/rainforestapp/decaf)
 
 ## A coffeescript to ES.next transpiler [Try it out online](http://www.goodafternoon.co/decaf/)
 
 Decaf grew out of the frustration of having to refactor coffeescript to modern JavaScript syntax. It does that for you automatically.
 
-Because decaf uses the coffeescript compiler under the hood it has an advantage over other coffeescript transpilers. Decaf aims to be able to compile all coffeescript, but it is still a fairly young project. Please try decaf and [submit issues](https://github.com/juliankrispel/decaf/issues) if you run into problems, I and a couple of amazing contributors are working hard on completing decaf.
+Because decaf uses the coffeescript compiler under the hood it has an advantage over other coffeescript transpilers. Decaf aims to be able to compile all coffeescript, but it is still a fairly young project. Please try decaf and [submit issues](https://github.com/rainforestapp/decaf/issues) if you run into problems, I and a couple of amazing contributors are working hard on completing decaf.
 
 When decaf encounters coffeescript syntax which can't be transpiled to es6 it falls back to using the coffeescript compiler output.
 
-At the moment decaf can transpile a fairly wide range of coffeescript syntax. To get a better idea of which features are supported, please have a look at [the test suite](https://travis-ci.org/juliankrispel/decaf).
+At the moment decaf can transpile a fairly wide range of coffeescript syntax. To get a better idea of which features are supported, please have a look at [the test suite](https://travis-ci.org/rainforestapp/decaf).
 
 ## Using decaf as a cli tool
 
@@ -43,5 +43,5 @@ As a second argument, you can parse options to the javascript printer, we use [r
 
 ### Design choices
 - [Coffeescript](https://github.com/jashkenas/coffeescript/blob/master/src/nodes.coffee) compiler to build coffeescript syntax tree.
-- Using [ast-types](https://github.com/benjamn/ast-types/), a library for building an esprima compatible syntax tree 
+- Using [ast-types](https://github.com/benjamn/ast-types/), a library for building an esprima compatible syntax tree
 - Using [jscodeshift](https://github.com/facebook/jscodeshift/) for code optimisation (like automatically declaring undeclared variables)
