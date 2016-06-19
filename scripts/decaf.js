@@ -68,6 +68,10 @@ var IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 var IS_STRING = /^['"]/;
 var IS_REGEX = /^\//;
 
+function isThisMemberExpression(node) {
+  return node.type === 'MemberExpression' && (node.object.type === 'ThisExpression' || node.object.name === 'this');
+}
+
 function mapBoolean(node) {
   if (node.base.val === 'true') {
     return _astTypes.builders.literal(true);
@@ -125,7 +129,9 @@ function mapLiteral(node) {
 
 function mapKey(node) {
   var type = node.base.constructor.name;
-  if (type === 'Literal') {
+  if (node.properties && node.properties.length) {
+    return _astTypes.builders.identifier(node.properties[0].name.value);
+  } else if (type === 'Literal') {
     return _astTypes.builders.identifier(node.base.value);
   }
 }
@@ -148,13 +154,8 @@ function mapRange(node, meta) {
 }
 
 function mapSlice(node, meta) {
-  var range = node.range;
-
-  var args = [range.from ? mapExpression(range.from, meta) : _astTypes.builders.literal(0)];
-  if (range.to) {
-    args.push(mapExpression(range.to, meta));
-  }
-  return _astTypes.builders.callExpression(_astTypes.builders.identifier('slice'), args);
+  var jsString = node.compile(meta).substring(1);
+  return _recast2.default.parse(jsString).program.body[0].expression;
 }
 
 function mapValue(node, meta) {
@@ -262,7 +263,7 @@ function mapCall(node, meta) {
 
   // fallback early if variable name contains an existential operator
 
-  if (node.variable && ((0, _findIndex2.default)((0, _get2.default)(node, 'variable.base.properties'), { soak: true }) > -1 || node.variable.properties && (0, _findIndex2.default)(node.variable.properties, { soak: true }) > -1)) {
+  if (isSoaked(node)) {
     return fallback(node, meta);
   }
 
@@ -550,6 +551,10 @@ function mapReturnStatement(node, meta) {
   return _astTypes.builders.returnStatement(node.expression ? mapExpression(node.expression, meta) : null);
 }
 
+function isSoaked(node) {
+  return node.variable && (0, _findIndex2.default)((0, _get2.default)(node, 'variable.base.properties'), { soak: true }) > -1 || node.variable && node.variable.properties && (0, _findIndex2.default)(node.variable.properties, { soak: true }) > -1;
+}
+
 function mapStatement(node, meta) {
   var type = node.constructor.name;
 
@@ -649,17 +654,31 @@ function mapBlockStatement(node, meta) {
 }
 
 function mapInArrayExpression(node, meta) {
-  return _astTypes.builders.memberExpression(mapExpression(node.array, meta), _astTypes.builders.callExpression(_astTypes.builders.identifier('includes'), [mapExpression(node.object, meta)]));
+  var test = _astTypes.builders.memberExpression(mapExpression(node.array, meta), _astTypes.builders.callExpression(_astTypes.builders.identifier('includes'), [mapExpression(node.object, meta)]));
+
+  if (node.negated) {
+    test = _astTypes.builders.unaryExpression('!', test);
+  }
+
+  return test;
 }
 
 function extractAssignStatementsByArguments(nodes) {
-  return nodes.map(function (node) {
+  function mapPatternThisAssignmentsToMemberExpressions(node) {
+    return node.properties.filter(function (assignment) {
+      return assignment.value.name === 'this';
+    }).map(function (assignment) {
+      return _astTypes.builders.memberExpression(_astTypes.builders.thisExpression(), _astTypes.builders.identifier(assignment.key.name));
+    });
+  }
+
+  return (0, _flatten2.default)(nodes.map(function (node) {
     return node.type === 'AssignmentExpression' ? node.left : node;
   }).map(function (node) {
     return node.type === 'RestElement' ? node.argument : node;
-  }).filter(function (node) {
-    return node.type === 'MemberExpression' && (node.object.type === 'ThisExpression' || node.object.name === 'this');
   }).map(function (node) {
+    return node.type === 'ObjectPattern' ? mapPatternThisAssignmentsToMemberExpressions(node) : node;
+  })).filter(isThisMemberExpression).map(function (node) {
     return _astTypes.builders.expressionStatement(_astTypes.builders.assignmentExpression('=', node, node.property));
   });
 }
@@ -668,7 +687,7 @@ function normalizeArgument(node) {
   if (node.type === 'AssignmentExpression' && node.left.type === 'MemberExpression') {
     return _astTypes.builders.assignmentExpression(node.operator, node.left.property, node.right);
   }
-  if (node.type === 'MemberExpression' && (node.object.type === 'ThisExpression' || node.object.name === 'this')) {
+  if (isThisMemberExpression(node)) {
     return { type: 'Identifier', name: node.property.name };
   }
   return node;
@@ -712,6 +731,8 @@ function lastReturnStatement() {
       return nodeList;
     } else if (nodeList[lastIndex].type === 'IfStatement') {
       nodeList[lastIndex] = addReturnStatementToIfBlocks(nodeList[lastIndex]);
+    } else if (nodeList[lastIndex].type === 'TryStatement') {
+      nodeList[lastIndex] = addReturnStatementsToTryCatch(nodeList[lastIndex]);
     } else {
       nodeList[lastIndex] = _astTypes.builders.returnStatement(transformToExpression(nodeList[nodeList.length - 1]));
     }
@@ -745,11 +766,18 @@ function addReturnStatementToIfBlocks(node) {
 
 function addReturnStatementToBlock(node) {
   var hasReturnStatement = (0, _findIndex2.default)(node.body, { type: 'ReturnStatement' }) === node.body.length - 1;
-
-  if (hasReturnStatement) {
-    return node;
+  if (!hasReturnStatement) {
+    node.body = lastReturnStatement(node.body);
   }
-  node.body = lastReturnStatement(node.body);
+  return node;
+}
+
+function addReturnStatementsToTryCatch(node) {
+  node.block = addReturnStatementToBlock(node.block);
+  if (node.handler) {
+    node.handler.body = addReturnStatementToBlock(node.handler.body);
+  }
+
   return node;
 }
 
@@ -818,6 +846,10 @@ function mapFunction(node, meta) {
     tailStatements.unshift(_astTypes.builders.variableDeclaration('var', [_astTypes.builders.variableDeclarator(_astTypes.builders.arrayPattern(tailArgs), _astTypes.builders.callExpression(_astTypes.builders.memberExpression(_astTypes.builders.identifier(name), _astTypes.builders.identifier('splice')), [_astTypes.builders.callExpression(_astTypes.builders.memberExpression(_astTypes.builders.identifier('Math'), _astTypes.builders.identifier('max')), [_astTypes.builders.literal(0), _astTypes.builders.binaryExpression('-', _astTypes.builders.memberExpression(_astTypes.builders.identifier(name), _astTypes.builders.identifier('length')), _astTypes.builders.literal(tailArgs.length))])]))]));
     setupStatements = tailStatements.concat(setupStatements);
   }
+
+  // since we are going to be using an arrow function, we can throw away the special
+  // context that CoffeeScript created for us
+  meta.scope.method.context = 'this';
 
   var block = mapBlockStatement(node.body, meta);
 
@@ -1005,11 +1037,11 @@ function mapSwitchStatement(node, meta) {
   return _astTypes.builders.switchStatement(subject, cases);
 }
 
-function mapForGuard(guardNode, blockStatement, meta) {
+function mapForGuard(guardNode, meta) {
   var isExistential = guardNode.constructor.name === 'Existence';
   var guardClause = isExistential ? mapExistentialExpression(guardNode, meta) : mapOp(guardNode.expression || guardNode, meta);
 
-  return _astTypes.builders.blockStatement([_astTypes.builders.ifStatement(guardClause, blockStatement)]);
+  return guardClause;
 }
 
 function mapForStatement(node, meta) {
@@ -1019,7 +1051,7 @@ function mapForStatement(node, meta) {
   // is a conditional expression attached to the for
   // loop
   if (node.guard) {
-    blockStatement = mapForGuard(node.guard, blockStatement, meta);
+    blockStatement = _astTypes.builders.blockStatement([_astTypes.builders.ifStatement(mapForGuard(node.guard, meta), blockStatement)]);
   }
 
   if (node.object === false) {
@@ -1051,6 +1083,15 @@ function mapLeftHandForExpression(node, meta) {
   return mapExpression(node.source, meta);
 }
 
+function mapForGuardToFilter(guardNode, target, args, meta) {
+  if (!guardNode) {
+    return null;
+  }
+
+  var guardClause = mapForGuard(guardNode, meta);
+  return _astTypes.builders.callExpression(_astTypes.builders.memberExpression(target, _astTypes.builders.identifier('filter')), [_astTypes.builders.arrowFunctionExpression(args, guardClause)]);
+}
+
 function mapForExpression(node, meta) {
   var leftHand = mapLeftHandForExpression(node, meta);
   var args = [];
@@ -1075,7 +1116,17 @@ function mapForExpression(node, meta) {
     }
   }
 
-  return _astTypes.builders.callExpression(_astTypes.builders.memberExpression(target, _astTypes.builders.identifier('map')), [_astTypes.builders.arrowFunctionExpression(args, addReturnStatementToBlock(mapBlockStatement(node.body, meta)))]);
+  var blockStatement = mapBlockStatement(node.body, meta);
+  var filterCall = mapForGuardToFilter(node.guard, target, args, meta);
+  if (filterCall) {
+    var hasNoLoopTransformLogic = blockStatement.body.length === 1 && _astTypes.namedTypes.Identifier.check(blockStatement.body[0].expression);
+
+    if (hasNoLoopTransformLogic) {
+      return filterCall;
+    }
+  }
+
+  return _astTypes.builders.callExpression(_astTypes.builders.memberExpression(filterCall || target, _astTypes.builders.identifier('map')), [_astTypes.builders.arrowFunctionExpression(args, addReturnStatementToBlock(blockStatement))]);
 }
 
 function mapSplatParam(node, meta) {
@@ -1240,7 +1291,21 @@ function mapParamToAssignment(node) {
   return assignment;
 }
 
+function mapExistentialAssignmentExpression(node, meta) {
+  var unsoaked = node.variable.unfoldSoak(meta);
+  var condition = mapExistentialExpression(unsoaked.condition, meta);
+  var assignTarget = mapExpression(unsoaked.body, meta);
+  var assignValue = mapExpression(node.value, meta);
+  var operator = node.context || '=';
+
+  return _astTypes.builders.conditionalExpression(condition, _astTypes.builders.assignmentExpression(operator, assignTarget, assignValue), _astTypes.builders.unaryExpression('void', _astTypes.builders.literal(0)));
+}
+
 function mapAssignmentExpression(node, meta) {
+  if (isSoaked(node)) {
+    return mapExistentialAssignmentExpression(node, meta);
+  }
+
   var variable = undefined;
   var props = (0, _get2.default)(node, 'variable.base.properties') || [];
   if ((0, _any2.default)(props, { this: true })) {
