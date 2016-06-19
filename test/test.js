@@ -1636,6 +1636,37 @@ else
     expect(compile(example)).toEqual(expected);
   });
 
+  it(`maps unless includes statements`, () => {
+    const example =
+`unless foo in list
+  bar();
+`;
+
+    const expected =
+`if (!list.includes(foo)) {
+  bar();
+}`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it(`maps not includes statements`, () => {
+    const example =
+`x = ->
+  return if foo not in ["a", "b", "c"]
+  qux()
+`;
+
+    const expected =
+`var x = function() {
+  if (!["a", "b", "c"].includes(foo)) {
+    return;
+  }
+
+  return qux();
+};`;
+    expect(compile(example)).toEqual(expected);
+  });
+
   it('avoids multiple declarations of the same variable', () => {
     const example =
 `switch word
