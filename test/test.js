@@ -2264,6 +2264,22 @@ for (var value of values) {
 }`;
     expect(compile(example)).toEqual(expected);
   });
+
+  it('assigns conditional loop result using array filter', () => {
+    const example = 'results = (item for item in items when item.code[0..1] == expected)';
+    const expected =
+`var results = (items.filter(item => item.code.slice(0, 2) === expected));`;
+    expect(compile(example)).toEqual(expected);
+  });
+
+  it('transform-and-assigns conditional loop result using array filter-and-map', () => {
+    const example = 'results = (item.name for item in items when item == expected)';
+    const expected =
+`var results = (items.filter(item => item === expected).map(item => {
+  return item.name;
+}));`;
+    expect(compile(example)).toEqual(expected);
+  });
 });
 
 describe('ranges', () => {
