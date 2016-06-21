@@ -18,6 +18,10 @@ const IS_NUMBER = /^[+-]?(?:0x[\da-f]+|\d*\.?\d+(?:e[+-]?\d+)?)$/i;
 const IS_STRING = /^['"]/;
 const IS_REGEX = /^\//;
 
+function warn(message) {
+  console.log(`[warning] ${message}`); // eslint-disable-line no-console
+}
+
 function isThisMemberExpression(node) {
   return node.type === 'MemberExpression' &&
       (node.object.type === 'ThisExpression' || node.object.name === 'this');
@@ -343,22 +347,11 @@ function mapClassExpressions(expressions, meta) {
   }, []);
 }
 
-function disallowPrivateClassStatements(node) {
-  if (any(node.expressions, expr => (
-    expr.constructor.name === 'Call' ||
-    (expr.constructor.name === 'Assign' && get(expr, 'variable.this') !== true)
-  ))) {
-    throwError(node.locationData, 'Private Class statements are not allowed.');
-  }
-}
-
 function mapClassBody(node, meta) {
   const {expressions} = node;
   const boundMethods = getBoundMethodNames(expressions, meta);
   const classElements = mapClassExpressions(expressions, meta);
   let constructor = findWhere(classElements, {kind: 'constructor'});
-
-  disallowPrivateClassStatements(node);
 
   if (boundMethods.length > 0) {
     if (constructor === undefined) {
@@ -634,11 +627,56 @@ function mapStatement(node, meta) {
   return b.expressionStatement(mapExpression(node, meta));
 }
 
+function getClassName({variable}) {
+  const nameProperties = variable.properties;
+  return nameProperties.length > 0
+    ? nameProperties[nameProperties.length - 1].name.value
+    : variable.base.value;
+}
+
+function mapClassPrivateVariables(classNode, meta) {
+  return classNode.body.expressions.filter(classExpression =>
+    classExpression.constructor.name === 'Assign' && get(classExpression, 'variable.this') !== true
+  ).map(classExpression =>
+    b.expressionStatement(mapExpression(classExpression, meta))
+  );
+}
+
+function mapClassPrivateCalls(classNode, meta) {
+  const privateCalls = classNode.body.expressions
+    .filter(classExpression => classExpression.constructor.name === 'Call')
+    .map(call => b.expressionStatement(mapExpression(call, meta)));
+
+  if (privateCalls.length === 0) {
+    return [];
+  }
+
+  if (!classNode.variable) {
+    throw new Error('Private calls are not supported for anonymous classes.');
+  }
+
+  jsc(privateCalls).find(jsc.MemberExpression, {
+    object: {name: 'this'},
+  }).replaceWith(path =>
+    b.memberExpression(
+      b.identifier(getClassName(classNode)),
+      path.node.property
+    )
+  );
+
+  return privateCalls;
+}
+
 function mapBlockStatements(node, meta) {
   return flatten(node.expressions.map(expr => {
     const type = expr.constructor.name;
+    const privateVars = [];
+    const privateCalls = [];
     let prototypeProps = [];
     if (type === 'Class') {
+      privateVars.push(...mapClassPrivateVariables(expr, meta));
+      privateCalls.push(...mapClassPrivateCalls(expr, meta));
+
       // extract prototype assignments
       prototypeProps = flatten(expr.body.expressions
         .filter(ex => (ex.constructor.name === 'Value'))
@@ -664,7 +702,21 @@ function mapBlockStatements(node, meta) {
         ));
     }
 
-    return [mapStatement(expr, meta)].concat(prototypeProps);
+    if (privateVars.length > 0) {
+      warn(
+        `class ${getClassName(expr)}'s private variables will be moved into the class's parent scope. ` +
+        `This may cause naming conflicts when multiple classes are defined in a single file.`
+      );
+    }
+
+    if (privateCalls.length > 0) {
+      warn(`Static calls in class ${getClassName(expr)} will be moved to after the class declaration.`);
+    }
+
+    return privateVars
+      .concat([mapStatement(expr, meta)])
+      .concat(privateCalls)
+      .concat(prototypeProps);
   }));
 }
 

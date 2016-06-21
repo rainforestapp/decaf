@@ -3,7 +3,7 @@
   "env": {
     "browser": true,
     "jest": true,
-    "jasmine": true,
+    "mocha": true,
     "commonjs": true
   },
   "rules": {

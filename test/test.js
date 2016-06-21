@@ -1,6 +1,7 @@
 /* eslint-disable no-eval */
 import expect from 'expect';
 import {compile as _compile} from '../src/parser';
+import {noop} from 'lodash';
 // import {compile as coffeeCompile} from 'coffee-script';
 
 
@@ -123,15 +124,97 @@ describe('throw statements', () => {
 });
 
 describe('private class statements', () => {
-  it('throws an error when private statements are used in a class definition', () => {
+  const oldConsoleLog = console.log;  // eslint-disable-line no-console
+  before(() => {
+    console.log = noop; // eslint-disable-line no-console
+  });
+
+  after(() => {
+    console.log = oldConsoleLog; // eslint-disable-line no-console
+  });
+
+  it('prevents private calls in anonymous classes', () => {
+    const example =
+`class extends Parent
+  boom()`;
+
+    expect(compile.bind(this, example)).toThrow();
+  });
+
+  it('moves private class vars to before the class definition', () => {
     const example =
 `class A
-  boom()
-  a = 123
   @a = 43214
+  a = 123
   a: () ->
+  b = (c) ->
+    c()
 `;
-    expect(compile.bind(this, example)).toThrow();
+    expect(compile(example)).toEqual(
+`var a = 123;
+
+var b = function(c) {
+  return c();
+};
+
+class A {
+  static a = 43214;
+  a() {}
+}`);
+  });
+
+  it('moves static calls within class to after the class definition', () => {
+    const example = `
+class A.B.C
+  D()
+
+  x: -> bar()
+`;
+
+    expect(compile(example)).toEqual(
+`A.B.C = class C {
+  x() {
+    return bar();
+  }
+};
+
+D();`
+    );
+  });
+
+  it('moves static class method calls to after the class definition', () => {
+    const example = `
+class A
+  @foo("bar")
+`;
+
+    expect(compile(example)).toEqual(
+`class A {}
+A.foo("bar");`
+    );
+  });
+
+  it('converts @prototype to Classname.prototype', () => {
+    const example = `
+class A.B
+  C.Mixin(@prototype, D.E.prototype)
+`;
+    expect(compile(example)).toEqual(
+`A.B = class B {};
+C.Mixin(B.prototype, D.E.prototype);`
+    );
+  });
+
+  it('converts this:: calls to Classname.prototype', () => {
+    const example = `
+class A.B
+  C.Mixin(this::, D.E::)
+`;
+
+    expect(compile(example)).toEqual(
+`A.B = class B {};
+C.Mixin(B.prototype, D.E.prototype);`
+    );
   });
 });
 
