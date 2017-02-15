@@ -72,5 +72,6 @@ function runByFile(file, config) {
   } catch (e) {
     console.log(chalk.red('Skipping file "%s" because of error.'), file);
     console.log(chalk.red(e.stack));
+    process.exit(1)
   }
 }
