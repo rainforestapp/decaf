@@ -25,6 +25,8 @@ if (program.args.length === 0) {
 run(program.args, program);
 
 function run(paths, config) {
+  var failedFiles = [];
+
   paths.forEach(function (path) {
     if (!fs.existsSync(path)) {
       console.log('Skipping path "%s" which does not exist.', path);
@@ -37,16 +39,20 @@ function run(paths, config) {
         files.filter(function (file) {
           return fs.statSync(file).isFile() && /.*\.coffee$/.test(file);
         }).forEach(function (file) {
-          runByFile(file, config);
+          runByFile(file, config, failedFiles);
         });
       });
     } else {
-      runByFile(path, config);
+      runByFile(path, config, failedFiles);
     }
   });
+
+  if (failedFiles.length > 0) {
+    process.exit(1);
+  }
 }
 
-function runByFile(file, config) {
+function runByFile(file, config, failedFiles) {
   var coffee = fs.readFileSync(file, { encoding: 'utf8'});
   try {
     var js = decaf.compile(coffee);
@@ -72,6 +78,6 @@ function runByFile(file, config) {
   } catch (e) {
     console.log(chalk.red('Skipping file "%s" because of error.'), file);
     console.log(chalk.red(e.stack));
-    process.exit(1)
+    failedFiles.push(file);
   }
 }
