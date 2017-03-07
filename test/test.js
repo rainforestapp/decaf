@@ -235,7 +235,7 @@ modulo(5, 3);`;
       expect(eval(compile(example))).toBe(modulo(a, b));
     });
 
-    it('-12 %% 13', () => {
+    it('-12 %% -3', () => {
       const a = -12;
       const b = -3;
       const example = `${a} %% ${b}`;
