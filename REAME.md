@@ -1,3 +1,5 @@
+Note: [juliankrispel](https://github.com/juliankrispel) has left Rainforest and now maintains decaf over at https://github.com/juliankrispel/decaf. It was missing a license, so we have made it MIT. Enjoy!
+
 # Decaf JS
 
 [![Build Status](https://travis-ci.org/rainforestapp/decaf.svg)](https://travis-ci.org/rainforestapp/decaf)
