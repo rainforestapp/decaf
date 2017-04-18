@@ -1371,6 +1371,17 @@ A.prototype.c = [1, 2, 3, 4];`;
   });
 });
 
+describe('extends keyword', () => {
+  it.only('extends plain objects', () => {
+    const example =
+`a = a: 1
+b = b: 2
+c = a extends b`;
+    const expected = ``;
+    expect(compile(example)).toEqual(expected);
+  });
+});
+
 describe('Destructuring', () => {
   it('{a, b} = abam', () => {
     const example = `{a, b} = abam`;
